@@ -2,7 +2,7 @@
 #include <cuda_runtime.h>
 #include "cufft_.h"
 #include <chrono>
-#include "cufft.h"
+#include <cufft.h>
 
 namespace FFT {
 	namespace CuFFT {
@@ -16,9 +16,10 @@ namespace FFT {
 		/**
 		 *Computes FFT using cuda library
 		 */
-		void computeCuFFT(float2* h_signal, int size) {
-			float2* d_signal;
-			cudaMalloc((void**)d_signal, sizeof(float2*) * size);
+		float2* computeCuFFT(float2* h_signal, int size) {
+			float2 *d_signal;
+			
+			cudaMalloc((void**)&d_signal, sizeof(float2*) * size);
 			cudaMemcpy(d_signal, h_signal, sizeof(float2*) * size, cudaMemcpyHostToDevice);
 			timer().startGpuTimer();
 			cufftHandle plan; 
@@ -26,9 +27,12 @@ namespace FFT {
 
 			cufftExecC2C(plan, (cufftComplex *)d_signal, (cufftComplex *)d_signal, CUFFT_FORWARD);
 			timer().endGpuTimer();
-			cudaMemcpy(h_signal, d_signal, sizeof(float2*) * size, cudaMemcpyDeviceToHost);
+			float2 *o_signal;
+			o_signal = (float2*) malloc(size * sizeof(float2));
+			cudaMemcpy(o_signal, d_signal, sizeof(float2) * size, cudaMemcpyDeviceToHost);
 
-			free(d_signal);
+			cudaFree(d_signal);
+			return o_signal;
 		}
 	}
 }

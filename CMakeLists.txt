@@ -22,26 +22,20 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 endif()
 
 include_directories(.)
-#find_library(RTAUDIO RtAudio REQUIRED)
-#find_path(RTAUDIO_DIR RtAudio.h REQUIRED)
-#include_directories("C:/Program Files (x86)/RtAudio/include/")
 include_directories(karnel)
 cuda_add_library(kernel
-"karnel/kernel.cu"
-	"karnel/kernel.h"
 	"karnel/cufft_.cu"
 	"karnel/cufft_.h"
 	"karnel/common.h"
 	"karnel/common.cu"
+	"karnel/hpfft.cu"
+	"karnel/hpfft.h"
 	OPTIONS -arch=sm_61
 	)
 
 cuda_add_executable(${CMAKE_PROJECT_NAME}
     	"src/main.cpp"
     "src/testing_helpers.hpp"
-   "src/RtAudio.cpp"
-      	"src/RtAudio.h"
-	"src/Sine.h"
     )
 
 if(WIN32)
@@ -49,11 +43,10 @@ if(WIN32)
     set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE FILEPATH "Host side compiler used by NVCC" FORCE)
 endif(WIN32)
 
-link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib/x64)
-#"C:/Program Files (x86)/RtAudio/lib/rtaudio.lib"
+#link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib/x64)
 target_link_libraries(${CMAKE_PROJECT_NAME}
-	cufft
     kernel
     ${CORELIBS}
+    ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cufft.lib
     )
 

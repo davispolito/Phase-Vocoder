@@ -3,6 +3,6 @@
 namespace FFT {
 	namespace CuFFT {   
 		FFT::Common::PerformanceTimer& timer();
-		void computeCuFFT(float2* h_signal, int size);
+		float2* computeCuFFT(float2* h_signal, int size);
 	}                                                                                             
 } 
