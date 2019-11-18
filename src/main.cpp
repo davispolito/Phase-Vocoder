@@ -12,6 +12,7 @@
 #include "cufft_.h"
 #include "testing_helpers.hpp"
 #include "hpfft.h"
+#include <iomanip>
 
 using namespace std;
 
@@ -85,27 +86,48 @@ int main()
 	int r, threads;
 	float computations = 0;
 	float sum = 0;
-	/*for(threads = 1; threads <= 1024; threads <<= 1){
-		for (int n = 32; n <= 1024; n <<= 1) {
-			cout << "50 Hz Wave, " << n << "samples" << endl;
-	        float2* a = FFT::CuFFT::computeCuFFT(&HZ_50[0], n);
+	for (int n = 32; n <= 1024; n <<= 1) {
+		cout << "50 Hz Wave, " << n << "samples" << endl;
+	    cout << "CUFFT" << setw(40)<< right;
+		float2* a = FFT::CuFFT::computeCuFFT(&HZ_50[0], n);
+		a = FFT::CuFFT::computeCuFFT(&HZ_50[0], n);
+		printElapsedTime(FFT::CuFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
+
+	    cout << "FFT Shared Memory" << setw(28) << right;
+		float2* b = FFT::HPFFT::computeFFTSh(&HZ_50[0], n, 2, n/2);
+	    printElapsedTime(FFT::HPFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
+
+		cout << "FFT GPU" << setw(38) << right;
+		float2* d = FFT::HPFFT::computeGPUFFT(n, 2, &HZ_50[0]);
+		printElapsedTime(FFT::HPFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
+
+		cout << "FFT Shared Memory Cooley Tuk" << right;
+		float2* c = FFT::HPFFT::computeFFTCooley(&HZ_50[0], n, 2, n/2);
+		printElapsedTime(FFT::HPFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
+			/*cout << "50, 505, 12000 Hz Wave, " << n << "samples" << endl;
+	        FFT::CuFFT::computeCuFFT(&HZ_50_505_12000[0], n);
 			printElapsedTime(FFT::CuFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
-			cout << "50, 500 Hz Wave, " << n << "samples" << endl;
+			*/
+		}
+			/*cout <<"50, 500 Hz Wave, " << n << "samples" << ;
 	        float2* b = FFT::CuFFT::computeCuFFT(&HZ_50_500[0], n);
 			printElapsedTime(FFT::CuFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
-			cout << "50, 505, 12000 Hz Wave, " << n << "samples" << endl;
-	//        FFT::CuFFT::computeCuFFT(&HZ_50_505_12000[0], n);
-		//	printElapsedTime(FFT::CuFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
-		}
-	}*/
-
-	float2* a = FFT::CuFFT::computeCuFFT(&HZ_50[0], 512);
-	float2* b = FFT::HPFFT::computeFFTSh(&HZ_50[0], 512, 2, 256);
-	float2* c = FFT::HPFFT::computeFFTCooley(&HZ_50[0], 512, 2, 512);
-	save_results("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/cufftout", a, 512, 44100);
+			*/
+	/*float2* a = FFT::CuFFT::computeCuFFT(&HZ_50[0], 512);
+	a = FFT::CuFFT::computeCuFFT(&HZ_50[0], 1024);
+	cout << "CUFFT :";
+	printElapsedTime(FFT::CuFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
+	float2* b = FFT::HPFFT::computeFFTSh(&HZ_50[0], 256, 2, 128);
+	cout << "FFT Shared Memory :";
+	printElapsedTime(FFT::HPFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
+	float2* c = FFT::HPFFT::computeFFTCooley(&HZ_50[0], 512, 2, 256);
+	cout << "FFT Shared Memory Cooley Tukey:";
+	printElapsedTime(FFT::HPFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
+	save_results("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/cufftout", a, 1024, 44100);
 	save_results("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/hpfftout", b, 512, 44100);
 	save_results("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/hpfftoutc", c, 512, 44100);
-	
+	save_results("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/hpfftoutd", d, 1024, 44100);
+	*/
 
 	for (threads = 1; threads <= 1024; threads <<= 1) {
 		for (int n = 32; n <= 1024; n <<= 1) {

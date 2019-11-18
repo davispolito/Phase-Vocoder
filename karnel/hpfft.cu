@@ -113,6 +113,8 @@ namespace FFT {
 				exchange(v, R, stride, idxD, Ns, idxS, N / R);
 			}
 		}
+
+
 		/**
 		*
 		*/
@@ -149,8 +151,9 @@ namespace FFT {
 			int blocksPerGrid = 1;
 			cudaMalloc((void**)&d_signal, sizeof(float2*)*N);
 			cudaMemcpy(d_signal, h_signal, N * sizeof(float2), cudaMemcpyHostToDevice);
+			timer().startGpuTimer();
 			FFTShMem << <blocksPerGrid, numThreads >> > (d_signal, N, numThreads, 1);
-
+			timer().endGpuTimer();
 			float2 *o_signal;
 			o_signal = (float2*)malloc(N * sizeof(float2));
 			cudaMemcpy(o_signal, d_signal, sizeof(float2) * N, cudaMemcpyDeviceToHost);
@@ -165,8 +168,60 @@ namespace FFT {
 			cudaMalloc((void**)&d_signal, sizeof(float2*)*N);
 			cudaMalloc((void**)&out, sizeof(float2*)*N);
 			cudaMemcpy(d_signal, h_signal, N * sizeof(float2), cudaMemcpyHostToDevice);
+			timer().startGpuTimer();
 			FFTCooley << <blocksPerGrid, numThreads >> > (d_signal, out, N);
+			timer().endGpuTimer();
+			float2 *o_signal;
+			o_signal = (float2*)malloc(N * sizeof(float2));
+			cudaMemcpy(o_signal, out, sizeof(float2) * N, cudaMemcpyDeviceToHost);
+			cudaFree(d_signal);
+			cudaFree(out);
+			return o_signal;
+		}
 
+		__device__ void FftIteration(int j, int N, int R, int Ns, float2* d_signal, float2* o_signal) {
+			float2 v[2];
+			int idxS = j; 
+			float angle = -2 * M_PI*(j%Ns) / (Ns*R);
+			for (int r = 0; r < R; r++) {
+				v[r] = d_signal[idxS + r * N / R];
+				v[r] = ComplexMul(v[r], { cos(r*angle), sin(r*angle) });
+			}
+
+			FFT2(v);
+			int idxD = expand(j, Ns, R);
+			for (int r = 0; r < R; r++) {
+				o_signal[idxD + r * Ns] = v[r];
+			}
+		}
+
+		__global__ void GPU_FFT(int N, int R, int Ns, float2* d_signal, float2* o_signal) {
+			int idx = blockDim.x * blockIdx.x + threadIdx.x;
+			if (idx >= N) {
+				return;
+			}
+			FftIteration(idx, N, R, Ns, d_signal, o_signal);
+		}
+		void swap(float2* &a, float2* &b){
+			 float2 *temp = a;
+			 a = b;
+			 b = temp;
+		}
+
+
+		float2* computeGPUFFT(int N, int R, float2* h_signal) {
+			float2* d_signal, *out;
+			//int blocksPerGrid = (N + numThreads - 1) / numThreads;
+			int blocksPerGrid = 1;
+			cudaMalloc((void**)&d_signal, sizeof(float2*)*N);
+			cudaMalloc((void**)&out, sizeof(float2*)*N);
+			cudaMemcpy(d_signal, h_signal, sizeof(float2*)*N, cudaMemcpyHostToDevice);
+			timer().startGpuTimer();
+			for (int Ns = 1; Ns < N; Ns *= R) {
+				GPU_FFT << <blocksPerGrid, N / R >> > (N, R, Ns, d_signal, out);
+			     swap(d_signal, out);
+			}
+			timer().endGpuTimer();
 			float2 *o_signal;
 			o_signal = (float2*)malloc(N * sizeof(float2));
 			cudaMemcpy(o_signal, out, sizeof(float2) * N, cudaMemcpyDeviceToHost);
