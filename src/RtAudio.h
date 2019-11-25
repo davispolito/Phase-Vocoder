@@ -42,7 +42,7 @@
 /*!
   \file RtAudio.h
  */
-#define __WINDOWS_WASAPI__ 1
+#define __RTAUDIO_DUMMY__ 1
 #ifndef __RTAUDIO_H
 #define __RTAUDIO_H
 

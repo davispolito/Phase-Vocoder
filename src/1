@@ -27,14 +27,14 @@ public:
         return currentSampleRate;
     }
     
-    void setFrequency(float frequency){
+    void setFrequency(double frequency){
         const float cyclesPerSample = frequency / (float) currentSampleRate;
         angleDelta = cyclesPerSample * 2.0 * PI;
     }
     
     // compute one sample
     float tick(){
-        const float currentSample = (float) std::sin (currentAngle);
+        const float currentSample = (float) std::sinf (currentAngle);
         currentAngle += angleDelta;
         return currentSample;
     }

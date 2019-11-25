@@ -11,9 +11,9 @@
 #include <cstring>
 #include "cufft_.h"
 #include "testing_helpers.hpp"
-#include "hpfft.h"
 #include <iomanip>
-
+#include "Sine.h"
+#include "phaseVocoder.h"
 using namespace std;
 
 void read_file(const char* filename, vector<float2>& out) {
@@ -40,9 +40,11 @@ void read_file(const char* filename, vector<float2>& out) {
  */
 void save_results(const char* filename, float2* result, size_t count, int sample_rate) {
   char* outfilename = new char[512];
-  
+  char* buffer = new char[10];
   // Compose the output filename
   strcpy(outfilename, filename);
+  sprintf(buffer, "%d", count);
+  strcat(outfilename, buffer);
   strcat(outfilename, ".out");
   
   // Create the file
@@ -66,73 +68,16 @@ void compute_file(const char *filename,vector<float2> buffer, size_t threads, in
 
 int main()
 {
-	printf("\n");
-    printf("****************\n");
-    printf("** FFT TESTS **\n");
-    printf("****************\n");
-	
-	vector<float2> HZ_50;
-	vector<float2> HZ_50_500;
-	vector<float2> HZ_50_505_12000;
-	
-	read_file("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/a.txt", HZ_50);
-	read_file("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/50Hz+500Hz/512smp@44100.dat", HZ_50_500);
-	//read_file("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/50Hz+505Hz+12000Hz/512smp@44100.dat", HZ_50_505_12000);
-
-	int size_50 = HZ_50.size();
-	int size_50_500 = HZ_50_500.size();
-	int size_50_505_12000 = HZ_50_505_12000.size();
-
-	int r, threads;
-	float computations = 0;
-	float sum = 0;
-	for (int n = 32; n <= 1024; n <<= 1) {
-		cout << "50 Hz Wave, " << n << "samples" << endl;
-	    cout << "CUFFT" << setw(40)<< right;
-		float2* a = FFT::CuFFT::computeCuFFT(&HZ_50[0], n);
-		a = FFT::CuFFT::computeCuFFT(&HZ_50[0], n);
-		printElapsedTime(FFT::CuFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
-
-	    cout << "FFT Shared Memory" << setw(28) << right;
-		float2* b = FFT::HPFFT::computeFFTSh(&HZ_50[0], n, 2, n/2);
-	    printElapsedTime(FFT::HPFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
-
-		cout << "FFT GPU" << setw(38) << right;
-		float2* d = FFT::HPFFT::computeGPUFFT(n, 2, &HZ_50[0]);
-		printElapsedTime(FFT::HPFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
-
-		cout << "FFT Shared Memory Cooley Tuk" << right;
-		float2* c = FFT::HPFFT::computeFFTCooley(&HZ_50[0], n, 2, n/2);
-		printElapsedTime(FFT::HPFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
-			/*cout << "50, 505, 12000 Hz Wave, " << n << "samples" << endl;
-	        FFT::CuFFT::computeCuFFT(&HZ_50_505_12000[0], n);
-			printElapsedTime(FFT::CuFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
-			*/
-		}
-			/*cout <<"50, 500 Hz Wave, " << n << "samples" << ;
-	        float2* b = FFT::CuFFT::computeCuFFT(&HZ_50_500[0], n);
-			printElapsedTime(FFT::CuFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
-			*/
-	/*float2* a = FFT::CuFFT::computeCuFFT(&HZ_50[0], 512);
-	a = FFT::CuFFT::computeCuFFT(&HZ_50[0], 1024);
-	cout << "CUFFT :";
-	printElapsedTime(FFT::CuFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
-	float2* b = FFT::HPFFT::computeFFTSh(&HZ_50[0], 256, 2, 128);
-	cout << "FFT Shared Memory :";
-	printElapsedTime(FFT::HPFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
-	float2* c = FFT::HPFFT::computeFFTCooley(&HZ_50[0], 512, 2, 256);
-	cout << "FFT Shared Memory Cooley Tukey:";
-	printElapsedTime(FFT::HPFFT::timer().getGpuElapsedTimeForPreviousOperation(), "(std::chrono Measured)");
-	save_results("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/cufftout", a, 1024, 44100);
-	save_results("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/hpfftout", b, 512, 44100);
-	save_results("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/hpfftoutc", c, 512, 44100);
-	save_results("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/hpfftoutd", d, 1024, 44100);
-	*/
-
-	for (threads = 1; threads <= 1024; threads <<= 1) {
-		for (int n = 32; n <= 1024; n <<= 1) {
-
-		}
-	}
+  Sine* sine = new Sine();
+  sine->setSamplingRate(44100);
+  sine->setFrequency(10000);
+  float input[2048];
+  for (int i = 0; i < 2048; i++){
+    input[i] = sine->tick();
+  }
+  PhaseVocoder* phase = new PhaseVocoder();
+  float2* output;
+  cudaMallocManaged((void**)&output, sizeof(float2*) * phase->N/2 * phase->N / phase->R);
+  phase->analysis(input, output);
 	return 0;
 }
