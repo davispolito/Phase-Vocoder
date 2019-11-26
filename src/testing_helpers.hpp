@@ -57,14 +57,26 @@ void genArray(int n, int *a, int maxval) {
     }
 }
 
-void printArray(int n, int *a, bool abridged = false) {
+void printArray(int n, float2 *a, bool abridged = false) {
     printf("    [ ");
     for (int i = 0; i < n; i++) {
         if (abridged && i + 2 == 15 && n > 16) {
             i = n - 2;
             printf("... ");
         }
-        printf("%3d ", a[i]);
+        printf("{%3f, ", a[i].x);
+        printf("%3f},", a[i].y);
+    }
+    printf("]\n");
+}
+void printArray(int n, float *a, bool abridged = false) {
+    printf("    [ ");
+    for (int i = 0; i < n; i++) {
+        if (abridged && i + 2 == 15 && n > 16) {
+            i = n - 2;
+            printf("... ");
+        }
+        printf("%3f, ", a[i]);
     }
     printf("]\n");
 }
