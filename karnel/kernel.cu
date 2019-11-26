@@ -97,6 +97,14 @@ __global__ void cufftShiftPadZeros(float2* output, float* input, int N, int numz
     output[idx].x = input[idx + N/2];
     output[idx + N/2 + numzeros].x = input[idx];
 }
+__global__ void cufftShift(float2* output, float* input, int N){
+    int idx = blockIdx.x *  blockDim.x + threadIdx.x; 
+    if(idx >= N / 2){
+      return;
+    }
+    output[idx].x = input[idx + N/2];
+    output[idx + N/2].x = input[idx];
+}
 
 __global__ void cudaWindow(float* input, float* win, int nSamps){ 
     int idx = blockIdx.x *  blockDim.x + threadIdx.x; 
@@ -138,7 +146,7 @@ void ppArray(int n, float *a, bool abridged = false) {
       return;
     }
     output[idx].x = sqrtf(input[idx].x * input[idx].x + input[idx].y * input[idx].y);
-    output[idx].y = tanf(input[idx].x / input[idx].y);
+    output[idx].y = atanf(input[idx].y / input[idx].x);
   }
   namespace CudaPhase{
      void PVAnalysis(float2* output, float2* shift, float* input, float* preAlias, float* alias, float* imp, cufftHandle * plan, int impLen, int R, int N, int numSamps, int nGroups){
@@ -147,15 +155,10 @@ void ppArray(int n, float *a, bool abridged = false) {
 
       void pv_analysis(float2* output, float2* magFreq, float* input, float* win, int N, cufftHandle* plan){
           cudaWindow<<<1, N>>>(input, win, N);
-      cudaStreamSynchronize(NULL);
-          printf("windowed");
-          ppArray( N, input);
-
+          //cufftShift<<<1, N/2>>>(output, input, N);
           cufftShiftPadZeros<<<1, N/2>>>(output, input, N, N);
-      cudaStreamSynchronize(NULL);
-          printf("padded");
-          ppArray( 2 *N, output);
           cufftExecC2C(*plan, (cufftComplex *)output, (cufftComplex *)output, CUFFT_FORWARD);
+          checkCUDAError("Cufft Error", __LINE__);
           cudaMagFreq<<<1, N>>>(magFreq, output, 2*N);
           
       }

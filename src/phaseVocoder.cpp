@@ -77,7 +77,7 @@ void pArrayin0(int n, float2 *a, bool abridged = false) {
       cudaStreamAttachMemAsync(NULL, this->imp, 0, cudaMemAttachHost);
 	  cudaStreamSynchronize(NULL);
       printf("out\n");
-      pArrayin0(this->nSamps * 2, output);
+      pArray(this->nSamps * 2, output, true);
       printf("mag\n");
-      pArrayin0(this->nSamps * 2, magFreq);
+      pArray(this->nSamps * 2, magFreq, true);
    }

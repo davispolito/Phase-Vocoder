@@ -58,6 +58,25 @@ void read_file(const char* filename, vector<float2>& out) {
   file.close();
 }
 
+
+void read_file(const char* filename, vector<float>& out) {
+  ifstream file;
+  file.open(filename, fstream::binary | fstream::out);
+  
+  if (file.is_open()) {
+    while (!file.eof()) {
+      float val;
+      if (file >> val) {
+        out.push_back(val);
+      }
+    }
+  } else {
+    cerr << "Can't open file " << filename << " for reading." << endl;
+  }
+  
+  file.close();
+}
+
 /**
  * Saves the result data to an output file.
  */
@@ -78,7 +97,7 @@ void save_results(const char* filename, float2* result, size_t count, int sample
   // Save the data
   outfile << "frequency, value" << endl;
   for (int i = 0; i < count / 2; i++) {
-      outfile << i * ((float)sample_rate/count) << "," << result[i].x << endl;
+      outfile << i * ((float)sample_rate/count) << "," << result[i].x << ", "<< result[i].y << endl;
   }
   
   outfile.close();
@@ -96,8 +115,11 @@ int main()
   sine->setFrequency(10000);
   float* input;
   cudaMallocManaged((void**)&input, sizeof(float) * 2048, cudaMemAttachHost);
+  vector<float> file;
+read_file("/home/davis/Desktop/Phase-Vocoder/src/500Hz+505Hz+12000Hz/2048smp@44100.dat",file);
+
   for (int i = 0; i < 2048; i++){
-    input[i] = sine->tick();
+    input[i] = file[i];
   }
   PhaseVocoder* phase = new PhaseVocoder(256);
   float2* output_2D[2048 / 64];
@@ -110,20 +132,30 @@ int main()
       cudaMallocManaged((void**)&output, sizeof(float2) * 2 * phase->nSamps);
       cudaMallocManaged((void**)&magFreq, sizeof(float2) * 2 * phase->nSamps);
       phase->analysis(&input[0], output, magFreq);
-      printf("here%d\n",i);
       //printArray(2 * phase->nSamps, output);
       //printArray(2 * phase->nSamps, magFreq);
+      printf("Storing Output\n");
       output_2D[i/64] = output;
       magFreq_2D[i/64] = magFreq;
+      /*printf("mag0 %f\n", magFreq[0].x);
+      printf("output0 %f\n", output[0].x);
+      printf("mag1 %f\n", magFreq_2D[0][0].x);
+      printf("output1 %f\n", output_2D[0][0].x);*/
   //}
 for(int k = 0; k < 1; k++){
-  save_results("/home/davis/Desktop/Phase-Vocoder/data/magPhase", magFreq_2D[k], k, 44100);
-  save_results("/home/davis/Desktop/Phase-Vocoder/data/output", output_2D[k], k, 44100);
+  printf("saving magnitude and phase\n");
+  save_results("/home/davis/Desktop/Phase-Vocoder/data/magPhase", output, phase->nSamps * 2, 44100);
+  printf("saving output\n");
+  save_results("/home/davis/Desktop/Phase-Vocoder/data/output", magFreq, phase->nSamps*2, 44100);
+  printf("freeing output\n");
   cudaFree(output_2D[k]);
+  printf("freeing magphase\n");
   cudaFree(magFreq_2D[k]);
 }
   
+  printf("freeing magphase\n");
 cudaFree(phase->imp);
-
+  printf("Destroying cufftplan_\n");
+cufftDestroy(phase->plan);
 	return 0;
 }
