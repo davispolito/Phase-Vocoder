@@ -45,6 +45,7 @@ cuda_add_executable(${CMAKE_PROJECT_NAME}
         "src/KaiserWindow.cpp"
 	"src/RtAudio.cpp"
 	"src/RtAudio.h"
+    "src/RtError.h"
     )
 SET(GCC_COVERAGE_LINK_FLAGS "-lasound")
 if(WIN32)

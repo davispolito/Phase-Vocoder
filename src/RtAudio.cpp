@@ -7253,6 +7253,7 @@ RtAudio::DeviceInfo RtApiAlsa :: getDeviceInfo( unsigned int device )
       }
       nDevices++;
     }
+
   nextcard:
     if ( chandle )
         snd_ctl_close( chandle );

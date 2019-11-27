@@ -11,8 +11,9 @@
 #include <cstring>
 #include "cufft_.h"
 #include <iomanip>
-#include "Sine.h"
 #include "phaseVocoder.h"
+#include "RtError.h"
+
 
 using namespace std;
 void printArray(int n, float2 *a, bool abridged = false) {
@@ -108,54 +109,72 @@ void compute_file(const char *filename,vector<float2> buffer, size_t threads, in
 		<< ", num_samples" << num_samples << endl; 
 }
 
+int callback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames, double streamTime, 
+            RtAudioStreamStatus status, void *data) {
+  if (status){
+    std::cout << "Stream overflow deteced" << std::endl;
+  }
+
+  unsigned long *bytes = (unsigned long *) data;
+  memcpy(outputBuffer, inputBuffer, *bytes);
+  return 0;
+}
+
 int main()
 {
-  Sine* sine = new Sine();
-  sine->setSamplingRate(44100);
-  sine->setFrequency(10000);
   float* input;
   cudaMallocManaged((void**)&input, sizeof(float) * 2048, cudaMemAttachHost);
-  vector<float> file;
-read_file("/home/davis/Desktop/Phase-Vocoder/src/500Hz+505Hz+12000Hz/2048smp@44100.dat",file);
 
-  for (int i = 0; i < 2048; i++){
-    input[i] = file[i];
+  int channels = 1;
+  int sampleRate = 44100;
+  unsigned int bufferSize, bufferBytes = 256;
+  int nBuffers = 4;
+  int device = 0;
+  RtAudio dac;
+  RtAudio::StreamParameters input_params;
+  RtAudio::StreamParameters output_params;
+  unsigned int devices = dac.getDeviceCount();
+  for(int i = 0; i < devices; i++){
+    RtAudio::DeviceInfo info = dac.getDeviceInfo(i);
+    if(info.probed == true)
+      std::cout << "device" << i << " = "<< info.name << std::endl;
   }
+  //input_params.deviceId = dac.getDefaultInputDevice();
+  input_params.deviceId = 11;
+  input_params.nChannels = 2;
+  output_params.deviceId = 11;
+  output_params.nChannels = 2;
   PhaseVocoder* phase = new PhaseVocoder(256);
   float2* output_2D[2048 / 64];
-  //output_2D = malloc(sizeof(float2*) * 2048 / 64);
   float2* magFreq_2D[2048/64];
-  //magFreq_2D = malloc(sizeof(float2*) * 2048 / 64); 
-  int i;
-  //for(i = 0; (i + 256) < 2048; i = i + 64 ){
-      float2* output, *magFreq;
-      cudaMallocManaged((void**)&output, sizeof(float2) * 2 * phase->nSamps);
-      cudaMallocManaged((void**)&magFreq, sizeof(float2) * 2 * phase->nSamps);
-      phase->analysis(&input[0], output, magFreq);
-      //printArray(2 * phase->nSamps, output);
-      //printArray(2 * phase->nSamps, magFreq);
-      printf("Storing Output\n");
-      output_2D[i/64] = output;
-      magFreq_2D[i/64] = magFreq;
-      /*printf("mag0 %f\n", magFreq[0].x);
-      printf("output0 %f\n", output[0].x);
-      printf("mag1 %f\n", magFreq_2D[0][0].x);
-      printf("output1 %f\n", output_2D[0][0].x);*/
-  //}
-for(int k = 0; k < 1; k++){
-  printf("saving magnitude and phase\n");
-  save_results("/home/davis/Desktop/Phase-Vocoder/data/magPhase", output, phase->nSamps * 2, 44100);
-  printf("saving output\n");
-  save_results("/home/davis/Desktop/Phase-Vocoder/data/output", magFreq, phase->nSamps*2, 44100);
-  printf("freeing output\n");
-  cudaFree(output_2D[k]);
-  printf("freeing magphase\n");
-  cudaFree(magFreq_2D[k]);
-}
-  
-  printf("freeing magphase\n");
-cudaFree(phase->imp);
-  printf("Destroying cufftplan_\n");
-cufftDestroy(phase->plan);
+  float2* output, *magFreq;
+  cudaMallocManaged((void**)&output, sizeof(float2) * 2 * phase->nSamps);
+  cudaMallocManaged((void**)&magFreq, sizeof(float2) * 2 * phase->nSamps);
+  //phase->analysis(&input[0], output, magFreq);
+  try{
+    //change buffer allocation to be cudamallocmanaged
+    dac.openStream(&output_params, &input_params, RTAUDIO_SINT16,
+                      sampleRate, &bufferSize, &callback, (void*)&bufferBytes);
+    bufferBytes = bufferSize * 2 * 2;
+    dac.startStream();
+  } 
+  catch (RtError &error){
+    error.printMessage();
+    exit(EXIT_FAILURE);
+  }
+char cinput;
+std::cout << "\n Recording in Progress: Do Not Eat\n";
+std::cin.get(cinput);
+  try{
+    dac.stopStream();
+  }
+  catch(RtError &error){
+    error.printMessage();
+  }
+  if(dac.isStreamOpen()) dac.closeStream();
+  cudaFree(output);
+  cudaFree(magFreq);
+  cudaFree(phase->imp);
+  cufftDestroy(phase->plan);
 	return 0;
 }
