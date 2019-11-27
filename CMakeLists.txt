@@ -43,19 +43,23 @@ cuda_add_executable(${CMAKE_PROJECT_NAME}
         "src/Sine.h"
         "src/KaiserWindow.h"
         "src/KaiserWindow.cpp"
+	"src/RtAudio.cpp"
+	"src/RtAudio.h"
     )
-
+SET(GCC_COVERAGE_LINK_FLAGS "-lasound")
 if(WIN32)
     # Set up include and lib paths
     set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE FILEPATH "Host side compiler used by NVCC" FORCE)
 endif(WIN32)
-
+find_package(ALSA REQUIRED)
+include_directories(${ALSA_INCLUDE_DIRS})
 link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib64)
 target_link_libraries(${CMAKE_PROJECT_NAME}
     kernel
     ${CORELIBS}
     "/usr/local/cuda/lib64/libcufft.so"
     "/usr/local/cuda/lib64/libcudadevrt.a"
+    ${ALSA_LIBRARIES}
     )
 
     #${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cufft.so

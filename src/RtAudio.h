@@ -42,7 +42,7 @@
 /*!
   \file RtAudio.h
  */
-#define __RTAUDIO_DUMMY__ 1
+#define __LINUX_ALSA__ 
 #ifndef __RTAUDIO_H
 #define __RTAUDIO_H
 
@@ -1070,6 +1070,7 @@ private:
 #endif
 
 #if defined(__LINUX_ALSA__)
+//#include <alsa/control.h>
 
 class RtApiAlsa: public RtApi
 {
