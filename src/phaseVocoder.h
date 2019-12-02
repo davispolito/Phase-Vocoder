@@ -1,6 +1,6 @@
 #pragma once
-#include "KaiserWindow.h"
 #include "kernel.h"
+#define M_PI 3.141592653589793284
 class PhaseVocoder{
 private:
     const int sampling_rate = 44100;
@@ -14,26 +14,17 @@ public:
     int R = 1; 		//R - Compression Ratio
     int N;	 	//N - num Phase Vocoder Channels 
 	cufftHandle plan;
-    PhaseVocoder():N(512), nGroups(4.0), nSamps(256){
-	    int winLen = N*nGroups + 1;
-	    int impLen = 2*winLen -1;
-	    std::vector<float> win(impLen);
-    	cudaMallocManaged((void**)&imp, sizeof(float)*nGroups*N, cudaMemAttachHost);	
-	    Loris::KaiserWindow::buildWindow(win, (float)6.8);
-	    for(int i = 0; i < nGroups * N; i++){
-	       imp[i] = N * win[i] * sin(M_PI * i / N) / (M_PI * i);
-	    }
-		cufftPlan1d(&(this->plan), this->N, CUFFT_C2C, 1);
-    }
+	cufftHandle ifft;
 
-    PhaseVocoder(int samples): nSamps(samples), hopSize(samples/4){
-	    std::vector<float> win(samples);
-	    Loris::KaiserWindow::buildWindow(win, (float)6.8);
+    PhaseVocoder(int samples): nSamps(samples), hopSize(samples/2){
     	cudaMallocManaged((void**)&imp, sizeof(float)*samples, cudaMemAttachHost);	
+		//hanning window
 	    for(int i = 0; i < samples; i++){
-	       imp[i] =  win[i];
+			imp[i] = 0.5 * (1.f - cos(2.f*M_PI*i / samples));
 	    }
-		cufftPlan1d(&(this->plan),   2*samples, CUFFT_C2C, 1);
+		cufftPlan1d(&(this->plan),  2 * samples, CUFFT_C2C, 1);
+		cufftPlan1d(&(this->ifft),  2 * samples, CUFFT_C2R, 1);
+
 
     }
 
@@ -42,4 +33,6 @@ public:
     }
     void analysis(float* input, float2* output);
     void analysis(float* input, float2* output, float2* magFreq);
+    void resynthesis(float* backFrame, float2* frontFrame, float* output);
+	void resynthesis(float* backFrame, float2* frontFrame, float* output, void(*processing)());
 };

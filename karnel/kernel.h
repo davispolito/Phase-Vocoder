@@ -10,6 +10,6 @@
 #include <stdexcept>
 #include "cufft.h"
 namespace CudaPhase{
- void PVAnalysis(float2* output, float2* shift, float* input, float* preAlias, float* alias, float* imp, cufftHandle * plan, int impLen, int R, int N, int numSamps, int nGroups);
  void pv_analysis(float2* output, float2* magFreq, float* input, float* win, int N, cufftHandle* plan);
+ void resynthesis(float* output, float* backFrame, float2* frontFrame, float* win, int N, cufftHandle* plan, int hopSize);
 };
