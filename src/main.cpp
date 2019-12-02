@@ -127,7 +127,8 @@ int main()
 
   int channels = 1;
   int sampleRate = 44100;
-  unsigned int bufferSize, bufferBytes = 256;
+  unsigned int bufferSize = 256;
+  unsigned int bufferBytes = 64;
   int nBuffers = 4;
   int device = 0;
   RtAudio dac;
@@ -139,6 +140,7 @@ int main()
     if(info.probed == true)
       std::cout << "device" << i << " = "<< info.name << std::endl;
   }
+  printf("queried\n");
   //input_params.deviceId = dac.getDefaultInputDevice();
   input_params.deviceId = 11;
   input_params.nChannels = 2;
@@ -154,8 +156,9 @@ int main()
   try{
     //change buffer allocation to be cudamallocmanaged
     dac.openStream(&output_params, &input_params, RTAUDIO_SINT16,
-                      sampleRate, &bufferSize, &callback, (void*)&bufferBytes);
-    bufferBytes = bufferSize * 2 * 2;
+                      sampleRate, &bufferSize, &callback);
+                      
+    //bufferBytes = bufferSize * 2 * 2;
     dac.startStream();
   } 
   catch (RtError &error){

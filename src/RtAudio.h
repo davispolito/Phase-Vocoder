@@ -43,6 +43,7 @@
   \file RtAudio.h
  */
 #define __LINUX_ALSA__ 
+//#define __UNIX_JACK__
 #ifndef __RTAUDIO_H
 #define __RTAUDIO_H
 
