@@ -42,7 +42,7 @@
 /*!
   \file RtAudio.h
  */
-#define __LINUX_ALSA__ 
+#define __WINDOWS_WASAPI__
 #ifndef __RTAUDIO_H
 #define __RTAUDIO_H
 

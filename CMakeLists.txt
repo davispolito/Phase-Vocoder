@@ -16,12 +16,10 @@ find_package(CUDA 10 REQUIRED)
 
 
 set(CUDA_ATTACH_VS_BUILD_RULE_TO_CUDA_FILE ON)
-set(CUDA_SEPARABLE_COMPILATION ON)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 endif()
-set(CUDA_SEPARABLE_COMPILATION TRUE)
 
 include_directories(.)
 include_directories(karnel)
@@ -32,7 +30,7 @@ cuda_add_library(kernel
 	"karnel/common.cu"
     "karnel/kernel.h"
     "karnel/kernel.cu"
-	OPTIONS -arch=sm_53
+	OPTIONS -arch=sm_61
 	)
 
 cuda_add_executable(${CMAKE_PROJECT_NAME}
@@ -41,26 +39,22 @@ cuda_add_executable(${CMAKE_PROJECT_NAME}
         "src/phaseVocoder.cpp"
         "src/phaseVocoder.h"
         "src/Sine.h"
-        "src/KaiserWindow.h"
-        "src/KaiserWindow.cpp"
 	"src/RtAudio.cpp"
 	"src/RtAudio.h"
     "src/RtError.h"
+    "src/io.h"
+    "src/io.cpp"
     )
 SET(GCC_COVERAGE_LINK_FLAGS "-lasound")
 if(WIN32)
     # Set up include and lib paths
     set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE FILEPATH "Host side compiler used by NVCC" FORCE)
 endif(WIN32)
-find_package(ALSA REQUIRED)
-include_directories(${ALSA_INCLUDE_DIRS})
 link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib64)
 target_link_libraries(${CMAKE_PROJECT_NAME}
     kernel
     ${CORELIBS}
-    "/usr/local/cuda/lib64/libcufft.so"
-    "/usr/local/cuda/lib64/libcudadevrt.a"
-    ${ALSA_LIBRARIES}
+     ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cufft.lib
     )
 
     #${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cufft.so

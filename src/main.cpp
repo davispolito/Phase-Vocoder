@@ -1,129 +1,31 @@
 #include "RtAudio.h"
 #include "kernel.h"
-#include <iostream>
-#include <cstdlib>
+#include "cufft_.h"
+#include "phaseVocoder.h"
+#include "RtError.h"
+#include "io.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <chrono>
-#include <vector>
-#include <cmath>
-#include <cstring>
-#include "cufft_.h"
 #include <iomanip>
-#include "phaseVocoder.h"
-#include "RtError.h"
-
-
+#include <cstring>
+#include <vector>
+#include <cstdlib>
+#include <cmath>
+#include <cstdio>
+#include <cmath>
+#include <algorithm>
+#include <chrono>
+#include <stdexcept>
 using namespace std;
-void printArray(int n, float2 *a, bool abridged = false) {
-    printf("    [ ");
-    for (int i = 0; i < n; i++) {
-        if (abridged && i + 2 == 15 && n > 16) {
-            i = n - 2;
-            printf("... ");
-        }
-        printf("{%3f, ", a[i].x);
-        printf("%3f},", a[i].y);
-    }
-    printf("]\n");
-}
-void printArray(int n, float *a, bool abridged = false) {
-    printf("    [ ");
-    for (int i = 0; i < n; i++) {
-        if (abridged && i + 2 == 15 && n > 16) {
-            i = n - 2;
-            printf("... ");
-        }
-        printf("%3f, ", a[i]);
-    }
-    printf("]\n");
-}
 
-void read_file(const char* filename, vector<float2>& out) {
-  ifstream file;
-  file.open(filename, fstream::binary | fstream::out);
-  
-  if (file.is_open()) {
-    while (!file.eof()) {
-      float2 val;
-      if (file >> val.x) {
-        val.y = 0;
-        out.push_back(val);
-      }
-    }
-  } else {
-    cerr << "Can't open file " << filename << " for reading." << endl;
-  }
-  
-  file.close();
-}
-
-
-void read_file(const char* filename, vector<float>& out) {
-  ifstream file;
-  file.open(filename, fstream::binary | fstream::out);
-  
-  if (file.is_open()) {
-    while (!file.eof()) {
-      float val;
-      if (file >> val) {
-        out.push_back(val);
-      }
-    }
-  } else {
-    cerr << "Can't open file " << filename << " for reading." << endl;
-  }
-  
-  file.close();
-}
-
-/**
- * Saves the result data to an output file.
- */
-void save_results(const char* filename, float2* result, size_t count, int sample_rate) {
-  char* outfilename = new char[512];
-  char* buffer = new char[10];
-  // Compose the output filename
-  strcpy(outfilename, filename);
-  sprintf(buffer, "%d", count);
-  strcat(outfilename, buffer);
-  strcat(outfilename, ".out");
-  
-  // Create the file
-  ofstream outfile;
-  outfile.open (outfilename);
-  outfile.precision(4);
-  
-  // Save the data
-  outfile << "frequency, value" << endl;
-  for (int i = 0; i < count / 2; i++) {
-      outfile << i * ((float)sample_rate/count) << "," << result[i].x << ", "<< result[i].y << endl;
-  }
-  
-  outfile.close();
-}
-
-void compute_file(const char *filename,vector<float2> buffer, size_t threads, int radix, int num_samples) {
-	cout << filename << ", " << "threads = " << threads << ", radix = " << radix
-		<< ", num_samples" << num_samples << endl; 
-}
-
-int callback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames, double streamTime, 
-            RtAudioStreamStatus status, void *data) {
-  if (status){
-    std::cout << "Stream overflow deteced" << std::endl;
-  }
-
-  unsigned long *bytes = (unsigned long *) data;
-  memcpy(outputBuffer, inputBuffer, *bytes);
-  return 0;
-}
+float2* magFreq_2D[2048/64];
+float2* output_2D[2048/64];
+float final_output_[2048];
 
 int main()
 {
-  float* input;
-  cudaMallocManaged((void**)&input, sizeof(float) * 2048, cudaMemAttachHost);
+  float input[2048];
 
   int channels = 1;
   int sampleRate = 44100;
@@ -140,17 +42,12 @@ int main()
       std::cout << "device" << i << " = "<< info.name << std::endl;
   }
   //input_params.deviceId = dac.getDefaultInputDevice();
-  input_params.deviceId = 11;
+  input_params.deviceId = dac.getDefaultInputDevice();
   input_params.nChannels = 2;
-  output_params.deviceId = 11;
+  output_params.deviceId = dac.getDefaultOutputDevice();
   output_params.nChannels = 2;
   PhaseVocoder* phase = new PhaseVocoder(256);
-  float2* output_2D[2048 / 64];
-  float2* magFreq_2D[2048/64];
-  float2* output, *magFreq;
-  cudaMallocManaged((void**)&output, sizeof(float2) * 2 * phase->nSamps);
-  cudaMallocManaged((void**)&magFreq, sizeof(float2) * 2 * phase->nSamps);
-  //phase->analysis(&input[0], output, magFreq);
+#ifdef RT
   try{
     //change buffer allocation to be cudamallocmanaged
     dac.openStream(&output_params, &input_params, RTAUDIO_SINT16,
@@ -172,9 +69,52 @@ std::cin.get(cinput);
     error.printMessage();
   }
   if(dac.isStreamOpen()) dac.closeStream();
-  cudaFree(output);
-  cudaFree(magFreq);
+
+#else // RT
+  read_file("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/2048smp@44100.dat", input, 2048);
+
+  save_results("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/input", input, phase->nSamps, 44100);
+  cout << "premalloc" << endl;
+  float* d_input;
+  cudaMalloc((void**)&d_input, sizeof(float) * phase->nSamps);
+
+  //analysis
+  for (int i = 0; i < phase->hopSize; i += phase->hopSize) {
+	  float2* output, *magFreq;
+	  cudaMallocManaged((void**)&output, sizeof(float2) * 2 * phase->nSamps);
+      cudaMallocManaged((void**)&magFreq, sizeof(float2) * 2 * phase->nSamps);
+	  cudaMemcpy(d_input, &input[i], sizeof(float)* phase->nSamps, cudaMemcpyHostToDevice);
+	  cudaStreamSynchronize(NULL);
+	  phase->analysis(d_input, output, magFreq);
+	  output_2D[i / phase->hopSize] = output;
+	  magFreq_2D[i / phase->hopSize] = magFreq;
+  }
+
+  // create emptyt backFrame
+  float* backFrame;
+  cudaMallocManaged((void**)&backFrame, sizeof(float) * phase->nSamps, cudaMemAttachHost);
+  for (int i = 0; i < phase->nSamps; i++) {
+	  backFrame[i] = 0;
+  }
+
+  //resynthesis
+  for (int i = 0; i < phase->hopSize; i += phase->hopSize) {
+	  float *final_output;
+	  cudaMallocManaged((void**)&final_output, sizeof(float2) * 2 * phase->nSamps);
+	  phase->resynthesis(backFrame, magFreq_2D[i/64], final_output);
+	  cudaMemcpy(backFrame, final_output, sizeof(float) * phase->nSamps, cudaMemcpyHostToHost);
+	  cout << "writing" << endl;
+	  save_results("C:/Users/Davis/Desktop/Vocoder/Phase-Vocoder/src/woop", backFrame, phase->nSamps, 44100);
+	  cudaFree(final_output);
+  }
+#endif //RT
+ 
+  for (int i = 0; i < 2048; i += phase->nSamps) {
+		cudaFree(output_2D[i/phase->nSamps]);
+		cudaFree(magFreq_2D[i/phase->nSamps]);
+  }
+  cudaFree(backFrame);
   cudaFree(phase->imp);
   cufftDestroy(phase->plan);
-	return 0;
+  return 0;
 }
