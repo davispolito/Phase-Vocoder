@@ -83,6 +83,16 @@ void ppArray(int n, float *a, bool abridged = false) {
     output[idx].y = atanf(input[idx].y / input[idx].x);
   }
 
+  __global__ void cudaMagFreq(float2* input, int N){
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if(idx >= N){
+      return;
+    }
+	float2 temp = input[idx];
+    input[idx].x = sqrtf(temp.x * temp.x + temp.y * temp.y);
+    input[idx].y = atanf(temp.y / temp.x);
+  }
+
   __global__ void cudaOverlapAdd(float* backFrame, float* frontFrame, int N, int hopSize) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx < N && idx >= hopSize) {
@@ -128,22 +138,37 @@ void ppArray(int n, float *a, bool abridged = false) {
 	}
   namespace CudaPhase{
 
+	  void pv_analysis(float2* output, float* input, float* win, int N, cufftHandle* plan) {
+		  cudaWindow << <1, N >> > (input, win, N);
+		  cufftShiftPadZeros<<<1, N/2>>>(output, input, N, N);
+		  cufftExecC2C(*plan, (cufftComplex *)output, (cufftComplex *)output, CUFFT_FORWARD);
+		  checkCUDAError_("Cufft Error analysis", __LINE__);
+		  cudaMagFreq << <1, N >> > (output,  N);
+		  checkCUDAError_("magfreq Error analysis", __LINE__);
+	  }
 	  void pv_analysis(float2* output, float2* magFreq, float* input, float* win, int N, cufftHandle* plan) {
 		  cudaWindow << <1, N >> > (input, win, N);
 		  cufftShiftPadZeros<<<1, N/2>>>(output, input, N, N);
 		  cufftExecC2C(*plan, (cufftComplex *)output, (cufftComplex *)output, CUFFT_FORWARD);
 		  checkCUDAError_("Cufft Error analysis", __LINE__);
-		  cudaMagFreq << <1, N >> > (magFreq, output, 2 * N);
+		  cudaMagFreq << <1, N >> > (magFreq, output,  N);
+		  checkCUDAError_("magfreq Error analysis", __LINE__);
 	  }
 		void resynthesis(float* output, float* backFrame, float2* frontFrame, float* win, int N, cufftHandle* plan, int hopSize) {
-		//	cudaTimeScale << <1, N >> > (frontFrame, 2*  N, 1);
+		 	cudaTimeScale << <1, N >> > (frontFrame, N, 1);
+
 			cufftExecC2R(*plan, frontFrame, output);
-			cudaDivVec << <1, N >> > (output, N, N);
 			checkCUDAError_("ifft error");
-			cufftShift<<<1,N/2>>>(output, N);
+
+			cudaDivVec << <1,2 * N >> > (output,2 * N, N);
+			checkCUDAError_("divvec error");
+
+			cufftShift<<<1,N>>>(output, 2*N);
 			checkCUDAError_("shift error");
-			cudaWindow<<<1, N>>>(output, win, N);
+
+			cudaWindow<<<1,2* N>>>(output, win,2* N);
 			checkCUDAError_("window error");
+
 			cudaOverlapAdd<<<1,N>>>(backFrame, output, N, hopSize);
 			checkCUDAError_("add error");
 	  
