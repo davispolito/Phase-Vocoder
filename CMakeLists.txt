@@ -30,7 +30,7 @@ cuda_add_library(kernel
 	"karnel/common.cu"
     "karnel/kernel.h"
     "karnel/kernel.cu"
-	OPTIONS -arch=sm_61
+	OPTIONS -arch=sm_53
 	)
 
 cuda_add_executable(${CMAKE_PROJECT_NAME}
@@ -44,8 +44,11 @@ cuda_add_executable(${CMAKE_PROJECT_NAME}
     "src/RtError.h"
     "src/io.h"
     "src/io.cpp"
+    "src/AudioFile.h"
     )
 SET(GCC_COVERAGE_LINK_FLAGS "-lasound")
+find_package(ALSA REQUIRED)
+include_directories(${ALSA_INCLUDE_DIRS})
 if(WIN32)
     # Set up include and lib paths
     set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE FILEPATH "Host side compiler used by NVCC" FORCE)
@@ -54,7 +57,8 @@ link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib64)
 target_link_libraries(${CMAKE_PROJECT_NAME}
     kernel
     ${CORELIBS}
-     ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cufft.lib
+    "/usr/local/cuda/lib64/libcufft.so"
+    "/usr/local/cuda/lib64/libcudadevrt.a"
+    ${ALSA_LIBRARIES}
     )
 
-    #${CUDA_TOOLKIT_ROOT_DIR}/lib/x64/cufft.so
