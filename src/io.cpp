@@ -1,5 +1,28 @@
 #include "io.h"
 using namespace std;
+void printArraywNewLines(int n, float *a, bool abridged) {
+    printf("    [ ");
+    for (int i = 0; i < n; i++) {
+        if (abridged && i + 2 == 15 && n > 16) {
+            i = n - 2;
+            printf("... ");
+        }
+        printf("%3f\n", a[i]);
+    }
+    printf("]\n");
+}
+void printArraywNewLines(int n, float2 *a, bool abridged) {
+    printf("    [ ");
+    for (int i = 0; i < n; i++) {
+        if (abridged && i + 2 == 15 && n > 16) {
+            i = n - 2;
+            printf("... ");
+        }
+        printf("%3f, ", a[i].x);
+        printf("%3f\n", a[i].y);
+    }
+    printf("]\n");
+}
 void printArray(int n, float2 *a, bool abridged) {
     printf("    [ ");
     for (int i = 0; i < n; i++) {

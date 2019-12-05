@@ -73,6 +73,7 @@ public:
     void analysis(float* input, float2* output);
     void analysis(float* input, float2* output, int offset);
     void analysis(float* input, float2* output, float2* magFreq);
+    void analysis(float* input, float2* output, float* intermediary);
     void resynthesis(float* backFrame, float2* frontFrame, float* output);
   	void resynthesis(float* backFrame, float2* frontFrame, float* output, void(*processing)());
 };

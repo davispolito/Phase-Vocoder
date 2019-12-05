@@ -19,6 +19,8 @@
 #include <stdexcept>
 
 void printArray(int n, float2 *a, bool abridged = false); 
+void printArraywNewLines(int n, float2 *a, bool abridged = false); 
+void printArraywNewLines(int n, float *a, bool abridged = false); 
 void printArray(int n, float *a, bool abridged = false); 
 void read_file(const char* filename, float* out, int count); 
 void save_results(const char* filename, float2* result, size_t count, int sample_rate);

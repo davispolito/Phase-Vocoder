@@ -58,7 +58,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     kernel
     ${CORELIBS}
     "/usr/local/cuda/lib64/libcufft.so"
-    "/usr/local/cuda/lib64/libcudadevrt.a"
+    
     ${ALSA_LIBRARIES}
     )
 

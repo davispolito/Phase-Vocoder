@@ -56,6 +56,13 @@ __global__ void cudaWindow(float* input, float* win, int nSamps, int offset){
     input[idx + offset] = input[idx + offset] * win[idx];
   }
   
+__global__ void cudaWindow(float* input, float* output, float* win, int nSamps){ 
+    int idx = blockIdx.x *  blockDim.x + threadIdx.x; 
+    if (idx >= nSamps){
+        return;
+    }
+    output[idx] = input[idx] * win[idx];
+  }
 __global__ void cudaWindow(float* input, float* win, int nSamps){ 
     int idx = blockIdx.x *  blockDim.x + threadIdx.x; 
     if (idx >= nSamps){
@@ -151,27 +158,44 @@ void ppArray(int n, float *a, bool abridged = false) {
 	  }
 		
 
-	}
+  }
+  #define DEBUGCUFFT
   namespace CudaPhase{
-
-	  void pv_analysis(float2* output, float* input, float* win, int N, cufftHandle* plan, int offset) {
-      cudaWindow << <1, N >> > (input, win, N, offset);
-      cudaStreamSynchronize(NULL);
+    ///usedbytwod
+	  void pv_analysis(float2* output, float* input, float* intermediary, float* win, int N, cufftHandle* plan) {
+      cudaWindow << <1, N >> > (input, intermediary, win, N);
+         #ifdef DEBUGwindow
+          float *debug_arr;
+          cudaMallocManaged((void**)&debug_arr, sizeof(float) * N, cudaMemAttachHost);
+          cudaMemcpy(debug_arr,input, sizeof(float) * N,cudaMemcpyDeviceToHost);
+          printf("in\n");
+          printArraywNewLines(N, debug_arr);
+          cudaMemcpy(debug_arr,intermediary, sizeof(float) * N,cudaMemcpyDeviceToHost);
+          printf("intermediary\n");
+          printArraywNewLines(N, debug_arr);
+          cudaFree(debug_arr);
+          #endif
 		  checkCUDAError_("Window analysis", __LINE__);
-		  cufftShiftPadZeros<<<1, N/2>>>(output, input, N, N, offset);
+		  cufftShiftPadZeros<<<1, N/2>>>(output, intermediary, N, N);
+         #ifdef DEBUGpad
+          float2 *debug_arr2;
+          cudaMallocManaged((void**)&debug_arr2, sizeof(float2) * N, cudaMemAttachHost);
+          cudaMemcpy(debug_arr2,output, sizeof(float2) * N,cudaMemcpyDeviceToHost);
+          printf("out\n");
+          printArraywNewLines(N, debug_arr2);
+          cudaFree(debug_arr2);
+          #endif
 		  checkCUDAError_("pad zero analysis", __LINE__);
 		  cufftExecC2C(*plan, (cufftComplex *)output, (cufftComplex *)output, CUFFT_FORWARD);
 		  checkCUDAError_("Cufft Error analysis", __LINE__);
-		  cudaMagFreq << <1, N >> > (output,  N);
-		  checkCUDAError_("magfreq Error analysis", __LINE__);
-	  }
-	  void pv_analysis(float2* output, float* input, float* win, int N, cufftHandle* plan) {
-		  cudaWindow << <1, N >> > (input, win, N);
-		  checkCUDAError_("Window analysis", __LINE__);
-		  cufftShiftPadZeros<<<1, N/2>>>(output, input, N, N);
-		  checkCUDAError_("pad zero analysis", __LINE__);
-		  cufftExecC2C(*plan, (cufftComplex *)output, (cufftComplex *)output, CUFFT_FORWARD);
-		  checkCUDAError_("Cufft Error analysis", __LINE__);
+         #ifdef DEBUGCUFFT
+         float2 *debug_arr2;
+          cudaMallocManaged((void**)&debug_arr2, sizeof(float2) * N, cudaMemAttachHost);
+          cudaMemcpy(debug_arr2,output, sizeof(float2) * N,cudaMemcpyDeviceToHost);
+          printf("postcufft\n");
+          printArraywNewLines(N, debug_arr2);
+          cudaFree(debug_arr2);
+          #endif
 		  cudaMagFreq << <1, N >> > (output,  N);
 		  checkCUDAError_("magfreq Error analysis", __LINE__);
 	  }
