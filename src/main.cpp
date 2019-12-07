@@ -1,6 +1,9 @@
 #include "RtAudio.h"
 //#define DEBUG
+#define DEBUGRESYNTH
 #define TWOD
+#define USECUFFTRE
+#define USECUFFTAN
 #include "kernel.h"
 #include "cufft_.h"
 #include "phaseVocoder.h"
@@ -23,7 +26,6 @@
 //#define RT
 using namespace std;
 
-
 void bufferToManageMemory(AudioFile<float> *buffer, float* output, int channel){
     cudaMallocManaged((void**)&output, buffer->getNumSamplesPerChannel() * sizeof(float), cudaMemAttachHost);
     checkCUDAError_("Malloc Error: unified memory for samples", __LINE__);
@@ -36,6 +38,7 @@ void bufferToManageMemory(AudioFile<float> *buffer, float* output, int channel){
     checkCUDAError_("mem orr", __LINE__);
     }
 }
+#ifdef RT
 float tranfer [256];
 int callback(void *outputBuffer, void* inputBuffer, unsigned int nBufferFrames, double streamTime, RtAudioStreamStatus status, void *UserData) {
 	float *h_inBuffer = (float *)inputBuffer; 
@@ -45,16 +48,28 @@ int callback(void *outputBuffer, void* inputBuffer, unsigned int nBufferFrames, 
 	if (status) std::cout << "Stream underflow detected!" << std::endl;
   memcpy(pv->curr_input, inputBuffer, sizeof(float) * nBufferFrames);
 	pv->analysis();
-	pv->resynthesis(pv->prev_output, pv->curr_mag_phase, h_outBuffer);
+//	pv->resynthesis(pv->prev_output, pv->curr_mag_phase, h_outBuffer);
     //memcpy(outputBuffer, inputBuffer, sizeof(float) * nBufferFrames * 2);
 	return 0;
 }
-
-int main()
+#endif
+int main(int argc, char** argv)
 {
+  std::string file = "/home/davis/Desktop/Phase-Vocoder/testtones/";
+  Effect effect;
+  if(argc < 2){
+    file = "/home/davis/Desktop/Phase-Vocoder/testtones/1000sine.wav";
+    effect = Effect::TIME_SHIFT;
+  }else if (argc < 3) {
+    file.append(argv[1]);
+    effect = Effect::TIME_SHIFT;
+  } else if (argc < 4){
+    file.append(argv[1]);
+    effect = static_cast<Effect>(*argv[2]);
+  }
   int channels = 1;
   int sampleRate = 44100;
-  PhaseVocoder* phase = new PhaseVocoder(256);
+  PhaseVocoder* phase = new PhaseVocoder(256, effect, 1, 2);
   unsigned int bufferSize = phase->nSamps;
   unsigned int bufferBytes = 256;
   int nBuffers = 4;
@@ -100,7 +115,7 @@ std::cin.get(cinput);
 
   AudioFile<float> * audioFile = new AudioFile<float>(); 
   AudioFile<float> outFile;
-  if(!audioFile->load("/home/davis/Desktop/Phase-Vocoder/testtones/1000sine.wav"))
+ if(!audioFile->load(file))
   {
     cout << "err: wav failed to load" << endl; 
     exit(1);
@@ -109,7 +124,9 @@ std::cin.get(cinput);
   int numChannels = audioFile->getNumChannels();
   int numSamples = audioFile->getNumSamplesPerChannel();
   
-  outFile.setAudioBufferSize(numChannels, phase->timeScale * numSamples);
+  //outFile.setAudioBufferSize(numChannels, phase->timeScale * numSamples);
+  outFile.setAudioBufferSize(2, phase->timeScale * numSamples);
+
   outFile.setSampleRate(44100);
   outFile.setBitDepth(16);
 #ifdef TWOD
@@ -134,7 +151,7 @@ std::cin.get(cinput);
     checkCUDAError_("Erroring Mallocing 2D_analysis array", __LINE__);
     for(int j = 0; j < numSamples; j += phase->hopSize){
         //cudaMallocManaged((void**)&d_output[i][j], sizeof(float2) * phase->nSamps, cudaMemAttachHost); 
-        cudaMalloc((void**)&d_output[i][j/phase->hopSize], sizeof(float2) * phase->nSamps); 
+        cudaMalloc((void**)&d_output[i][j/phase->hopSize], sizeof(float2) *2 * phase->nSamps); 
         checkCUDAError_("Erroring Mallocing analysis sample array", __LINE__);
     }
   }
@@ -142,21 +159,30 @@ std::cin.get(cinput);
  //analysis
   float* intermediary;
   cudaMalloc((void**)&intermediary, sizeof(float) *phase->nSamps);
+         checkCUDAError_("Error Mallocing Intermediary in main.cpp", __LINE__);
+  float2* fft;
+  cudaMallocManaged((void**)&fft, sizeof(float2)* 2*phase->nSamps, cudaMemAttachGlobal);
+         checkCUDAError_("Error Mallocing fft in main.cpp", __LINE__);
   for (int channel = 0; channel < numChannels; channel++){
 	   cudaStreamAttachMemAsync(NULL, d_input[channel], 0, cudaMemAttachGlobal);
 	   checkCUDAError_("attach input", __LINE__);
      for (int i = 0; i < numSamples - phase->hopSize; i += phase->hopSize) {
 	       cudaStreamSynchronize(NULL);
-	       phase->analysis(&d_input[channel][i / phase->hopSize],d_output[channel][i / phase->hopSize], intermediary);
+         #ifdef USECUFFTAN
+	       phase->analysis_CUFFT(&d_input[channel][i / phase->hopSize], d_output[channel][i / phase->hopSize],fft, intermediary);
+         #else
+	       phase->analysis(&d_input[channel][i / phase->hopSize], d_output[channel][i / phase->hopSize],fft, intermediary);
+         #endif
          #ifdef DEBUG
           float2 *debug_arr;
-          cudaMallocManaged((void**)&debug_arr, sizeof(float2) * phase->nSamps, cudaMemAttachHost);
-          cudaMemcpy(debug_arr,d_output[channel][i/phase->hopSize], sizeof(float2) * phase->nSamps,cudaMemcpyDeviceToHost);
-          printArraywNewLines(phase->nSamps, debug_arr);
+          cudaMallocManaged((void**)&debug_arr, sizeof(float2) * 2  * phase->nSamps, cudaMemAttachHost);
+          cudaMemcpy(debug_arr,d_output[channel][i/phase->hopSize], sizeof(float2) * 2* phase->nSamps,cudaMemcpyDeviceToHost);
+          printArraywNewLines(2 * phase->nSamps, debug_arr);
           #endif
          checkCUDAError_("analysis error main.cpp", __LINE__);
       }
   }
+  cudaFree(intermediary);
   // create empty backFrame
   float* backFrame;
   cudaMallocManaged((void**)&backFrame, sizeof(float) *phase->nSamps, cudaMemAttachHost);
@@ -166,20 +192,48 @@ std::cin.get(cinput);
   }
   cout << "resynthesis" << endl;
   //resynthesis
-  for (int channel = 0; channel < numChannels; channel++){
-     for (int i = 0; i < numSamples - phase->hopSize; i += phase->hopSize) {
-        float* final_output;
-        cudaMallocManaged((void**)&final_output, sizeof(float) * phase->nSamps, cudaMemAttachHost);
-        checkCUDAError_("mallloc managed main.cpp final_output", __LINE__);
-	      phase->resynthesis(backFrame, d_output[channel][i/phase->hopSize], final_output);
-	      cudaMemcpy(backFrame, final_output, sizeof(float) * phase->nSamps, cudaMemcpyHostToHost);
-	      cudaFree(final_output);
-        for(int j = 0; j < phase->outHopSize; j++){
-            int idx = i /phase->hopSize * phase->outHopSize + j;
-            outFile.samples[channel][idx] = backFrame[j];
+  switch (effect){
+     //TIMESHIFT
+      case Effect::TIME_SHIFT : {
+        for (int channel = 0; channel < numChannels; channel++){
+          int outIndex = 0;
+          for (int i = 0; i < numSamples - phase->hopSize; i += phase->hopSize) {
+              float* final_output;
+              cudaMallocManaged((void**)&final_output, sizeof(float) * phase->nSamps, cudaMemAttachHost);
+              checkCUDAError_("mallloc managed main.cpp final_output", __LINE__);
+              #ifdef USECUFFTRE
+              phase->resynthesis_CUFFT(backFrame, d_output[channel][i/phase->hopSize], final_output);
+              #else
+              phase->resynthesis(backFrame, d_output[channel][i/phase->hopSize], fft, final_output);
+              #endif
+              cudaMemcpy(backFrame, final_output, sizeof(float) * phase->nSamps, cudaMemcpyHostToHost);
+              cudaFree(final_output);
+              for(int j = 0; j < phase->outHopSize; j++){
+                  //int idx = i /phase->hopSize * phase->outHopSize + j;
+                  int idx = outIndex + j;
+                  if(idx < 0){
+                    break;
+                  }                  
+                  outFile.samples[channel][idx] = backFrame[j];
+                  if(numChannels = 1){
+                      outFile.samples[1][idx] = backFrame[j];
+                  }
+                  #ifdef DEBUGRESYNTH
+                  printf("%f\n",backFrame[j]);
+                  #endif
+              }
+              outIndex += phase->outHopSize;
+          }
         }
-     }
+        break;
+      }
+      //pitchSHIFT
+      case Effect::PITCH_SHIFT : {
+
+      }
   }
+  
+  cudaFree(fft);
   cout << "writing to file" << endl;
   outFile.save("/home/davis/Desktop/Phase-Vocoder/output/out.wav");
   cudaFree(backFrame);

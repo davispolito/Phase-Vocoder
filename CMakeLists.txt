@@ -30,6 +30,8 @@ cuda_add_library(kernel
 	"karnel/common.cu"
     "karnel/kernel.h"
     "karnel/kernel.cu"
+    "karnel/hpfft.h"
+    "karnel/hpfft.cu"
 	OPTIONS -arch=sm_53
 	)
 
