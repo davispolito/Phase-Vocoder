@@ -17,6 +17,11 @@ using namespace std;
     void pv_analysis_RT(float2* output,float2* fft, float* input, float * intermediary, int N, stream);
 	//cudaStreamSynchronize(NULL);
 }*/
+void PhaseVocoder::test_overlap_add(float* input, float* output, float* intermediary, float* backFrame, int N){
+	CudaPhase::test_overlap_add(input, output, intermediary, backFrame, this->imp, N, this->hopSize);
+	cudaStreamSynchronize(NULL);
+}
+
 void PhaseVocoder::analysis_CUFFT(float* input, float2* output, float2* fft, float* intermediary){
     cudaStreamAttachMemAsync(NULL, this->imp, 0, cudaMemAttachGlobal);
 	checkCUDAError_("attach win", __LINE__);

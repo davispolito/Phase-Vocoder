@@ -15,4 +15,5 @@ namespace CudaPhase{
  void pv_analysis_CUFFT(float2* output,float2* fft, float* input, float * intermediary, float* win, int N);
  void resynthesis(float* output, float* backFrame, float2* frontFrame, float2* intermediary, float* win, int N, int hopSize);
  void resynthesis_CUFFT(float* output, float* backFrame, float2* frontFrame, float* win,int N, int hopSize);
+ void test_overlap_add(float* input, float* output, float* intermediary, float* backFrame, float* win, int N, int hopSize);
 };

@@ -81,10 +81,10 @@ public:
     	cudaMallocManaged((void**)&imp1, sizeof(float)*samples, cudaMemAttachHost);
 		  checkCUDAErrori("Malloc imp1 error",__LINE__);
 		  //hanning window
-			float omega = 2.f * M_PI / (2 * samples-1);
+			float omega = 2.f * M_PI / (samples-1);
 	    for(int i = 0; i <  samples; i++){
-			 // imp[i] = 0.5f * (1.f - cosf(omega * i));
-			  imp[i] = (0.54f - 0.46f * cos(omega*(i))); 
+			//  imp[i] = 0.5f * (1.f - cosf(omega * i));
+			 imp[i] = (0.54f - 0.46f * cos(omega*(i))); 
 	    }
 			float omega1 = 2.f * M_PI / (2 * samples-1);
 	    for(int i = 0; i < 2* samples; i++){
@@ -100,7 +100,7 @@ public:
 				case TIME_SHIFT:
 				{
 					timeScale = scaleFactor;
-					outHopSize = hopSize * timeScale;
+					outHopSize = scaleFactor * hopSize;
 					break;
 				}
 				case PITCH_SHIFT:
@@ -133,5 +133,6 @@ public:
     void analysis_CUFFT(float* input, float2* output, float2* fft,float* intermediary);
     void resynthesis(float* backFrame, float2* frontFrame, float2* intermediary, float* output);
   	void resynthesis(float* backFrame, float2* frontFrame, float* output, void(*processing)());
+		void test_overlap_add(float* input, float* output, float* intermediary, float* backFrame, int N);
 void resynthesis_CUFFT(float* backFrame, float2* frontFrame, float* output); 
 };
