@@ -22,7 +22,7 @@ During the analysis phase we first take the input wave form and window it using 
 The Processing that occurs here depends on the effect. Time shifting would feature modification of the hop/overlap size as well as scaling of phase information over time. 
 In the case of pitch modification careful measure must be taken to determine the continuous phase or phase difference between windows.
 
-![resynthesis](img/resynthesis.png)
+![resynthesis](img/resynth.png)
 
 Resynthesis is simply the inverse fourier transform as well as proper scaling (by window size) and time shifting of the signal
 
