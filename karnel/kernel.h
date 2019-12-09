@@ -9,7 +9,9 @@
 #include <chrono>
 #include <stdexcept>
 #include "cufft.h"
+#include "common.h"
 namespace CudaPhase{
+ FFT::Common::PerformanceTimer& timer();
  void pv_analysis(float2* output,float2* fft, float* input, float * intermediary, float* win, int N);
  void pv_analysis_RT(float2* output,float2* fft, float* input, float * intermediary,int N, cudaStream_t* stream);
  void pv_analysis_CUFFT(float2* output,float2* fft, float* input, float * intermediary, float* win, int N);

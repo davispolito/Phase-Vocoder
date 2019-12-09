@@ -2,6 +2,8 @@
 //#define OVERLAPTEST
 //#define DEBUG
 //#define DEBUGRESYNTH
+//#define ANALYSIS_PERFORMANCE_ANALYSIS
+//#define RESYNTHESIS_PERFORMANCE_ANALYSIS
 #define TWOD
 #define USECUFFTRE
 #define USECUFFTAN
@@ -23,6 +25,7 @@
 #include <algorithm>
 #include <chrono>
 #include <stdexcept>
+#include "testing_helpers.hpp"
 #include "AudioFile.h"
 //#define RT
 using namespace std;
@@ -57,16 +60,24 @@ int callback(void *outputBuffer, void* inputBuffer, unsigned int nBufferFrames, 
 int main(int argc, char** argv)
 {
   std::string file = "/home/davis/Desktop/Phase-Vocoder/testtones/";
+  std::string outfile = "/home/davis/Desktop/Phase-Vocoder/output/";
   Effect effect;
   if(argc < 2){
     file = "/home/davis/Desktop/Phase-Vocoder/testtones/1000sine.wav";
     effect = Effect::TIME_SHIFT;
+    outfile.append("out.wav");
   }else if (argc < 3) {
     file.append(argv[1]);
     effect = Effect::TIME_SHIFT;
+    outfile.append("out.wav");
   } else if (argc < 4){
     file.append(argv[1]);
     effect = static_cast<Effect>(*argv[2]);
+    outfile.append("out.wav");
+  } else if (argc < 5){
+    file.append(argv[1]);
+    effect = static_cast<Effect>(*argv[2]);
+    outfile.append(argv[3]);
   }
   int channels = 1;
   int sampleRate = 44100;
@@ -143,51 +154,51 @@ std::cin.get(cinput);
       }    
    }
   #ifdef OVERLAPTEST
-  float* intermediary1;
-  cudaMalloc((void**)&intermediary1, sizeof(float) *phase->nSamps);
-         checkCUDAError_("Error Mallocing Intermediary in main.cpp", __LINE__);
-  float* backFrame1;
-  cudaMallocManaged((void**)&backFrame1, sizeof(float) *phase->nSamps, cudaMemAttachHost);
-  checkCUDAError_("mallloc managed backframe main.cpp", __LINE__);
-  for (int i = 0; i < phase->nSamps; i++) {
-	  backFrame1[i] = 0;
-  }
-  cout << "overlap test" << endl;
-  for (int j = 0; j< numChannels; j++) {
-    int outIndex = 0;
-	   cudaStreamAttachMemAsync(NULL, d_input[j], 0, cudaMemAttachGlobal);
-	   cudaStreamAttachMemAsync(NULL, backFrame1, 0, cudaMemAttachGlobal);
-     checkCUDAError_("stream attach", __LINE__);
-      for(int i = 0; i < numSamples/phase->hopSize; i++){
-	      cudaStreamAttachMemAsync(NULL, backFrame1, 0, cudaMemAttachGlobal);
-        float* final_output;
-        cudaMallocManaged((void**)&final_output, sizeof(float) * phase->nSamps, cudaMemAttachGlobal);
-        checkCUDAError_("malloc", __LINE__);
-        phase->test_overlap_add(&d_input[j][i * phase->hopSize], final_output, intermediary1, backFrame1, 256);
-        cudaMemcpy(backFrame1, final_output, sizeof(float) * phase->nSamps, cudaMemcpyDeviceToDevice);
-        checkCUDAError_("memcpy", __LINE__);
-	      cudaStreamAttachMemAsync(NULL, backFrame1, 0, cudaMemAttachHost);
-        cudaStreamSynchronize(NULL);
-        for(int a = 0; a < phase->outHopSize; a++){
-            //int idx = i /phase->hopSize * phase->outHopSize + j;
-            int idx = outIndex + a;
-            if(idx < 0){
-              break;
-            }                  
-            outFile.samples[j][idx] = backFrame1[a];
-            if(numChannels = 1){
-                outFile.samples[1][idx] = backFrame1[a];
-            }
-            #ifdef DEBUGRESYNTH
-            printf("%f\n",backFrame[j]);
-            #endif
-        }
-        outIndex += phase->outHopSize;
-        cudaFree(final_output);
-  checkCUDAError_("cuda", __LINE__);
+      float* intermediary1;
+      cudaMalloc((void**)&intermediary1, sizeof(float) *phase->nSamps);
+            checkCUDAError_("Error Mallocing Intermediary in main.cpp", __LINE__);
+      float* backFrame1;
+      cudaMallocManaged((void**)&backFrame1, sizeof(float) *phase->nSamps, cudaMemAttachHost);
+      checkCUDAError_("mallloc managed backframe main.cpp", __LINE__);
+      for (int i = 0; i < phase->nSamps; i++) {
+        backFrame1[i] = 0;
       }
-  }
-  goto write;
+      cout << "overlap test" << endl;
+      for (int j = 0; j< numChannels; j++) {
+        int outIndex = 0;
+        cudaStreamAttachMemAsync(NULL, d_input[j], 0, cudaMemAttachGlobal);
+        cudaStreamAttachMemAsync(NULL, backFrame1, 0, cudaMemAttachGlobal);
+        checkCUDAError_("stream attach", __LINE__);
+          for(int i = 0; i < numSamples/phase->hopSize; i++){
+            cudaStreamAttachMemAsync(NULL, backFrame1, 0, cudaMemAttachGlobal);
+            float* final_output;
+            cudaMallocManaged((void**)&final_output, sizeof(float) * phase->nSamps, cudaMemAttachGlobal);
+            checkCUDAError_("malloc", __LINE__);
+            phase->test_overlap_add(&d_input[j][i * phase->hopSize], final_output, intermediary1, backFrame1, 256);
+            cudaMemcpy(backFrame1, final_output, sizeof(float) * phase->nSamps, cudaMemcpyDeviceToDevice);
+            checkCUDAError_("memcpy", __LINE__);
+            cudaStreamAttachMemAsync(NULL, backFrame1, 0, cudaMemAttachHost);
+            cudaStreamSynchronize(NULL);
+            for(int a = 0; a < phase->outHopSize; a++){
+                //int idx = i /phase->hopSize * phase->outHopSize + j;
+                int idx = outIndex + a;
+                if(idx < 0){
+                  break;
+                }                  
+                outFile.samples[j][idx] = backFrame1[a];
+                if(numChannels = 1){
+                    outFile.samples[1][idx] = backFrame1[a];
+                }
+                #ifdef DEBUGRESYNTH
+                printf("%f\n",backFrame[j]);
+                #endif
+            }
+            outIndex += phase->outHopSize;
+            cudaFree(final_output);
+      checkCUDAError_("cuda", __LINE__);
+          }
+      }
+      goto write;
   #endif
 
   float2*** d_output;
@@ -224,6 +235,10 @@ std::cin.get(cinput);
          #else
 	       phase->analysis(&d_input[channel][i], d_output[channel][i / phase->hopSize],fft, intermediary);
          #endif
+         #ifdef ANALYSIS_PERFORMANCE_ANALYSIS
+         //printElapsedTime(CudaPhase::timer().getGpuElapsedTimeForPreviousOperation(), "Analysis");
+         cout  << CudaPhase::timer().getGpuElapsedTimeForPreviousOperation() << endl;
+         #endif
          #ifdef DEBUG
           float2 *debug_arr;
           cudaMallocManaged((void**)&debug_arr, sizeof(float2) * 2  * phase->nSamps, cudaMemAttachHost);
@@ -257,6 +272,10 @@ std::cin.get(cinput);
               #else
               phase->resynthesis(backFrame, d_output[channel][i], fft, final_output);
               #endif
+              #ifdef RESYNTHESIS_PERFORMANCE_ANALYSIS
+              //printElapsedTime(CudaPhase::timer().getGpuElapsedTimeForPreviousOperation(), "Resynthesis");
+              cout << CudaPhase::timer().getGpuElapsedTimeForPreviousOperation() << endl;
+              #endif 
               cudaMemcpy(backFrame, final_output, sizeof(float) * phase->nSamps, cudaMemcpyHostToHost);
               cudaFree(final_output);
               for(int j = 0; j < phase->outHopSize; j++){

@@ -166,8 +166,14 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
   //#define DEBUGwindow
   namespace CudaPhase{
     ///usedbytwod
-    
-    
+    using FFT::Common::PerformanceTimer;
+		PerformanceTimer& timer()
+		{
+			static PerformanceTimer timer;
+			return timer;
+		}
+
+  
 	  void pv_analysis(float2* output, float2* fft, float* input, float* intermediary, float* win, int N) {
       cudaWindow << <1, N >> > (input, intermediary, win, N);
 		  checkCUDAError_("Window analysis", __LINE__);
@@ -213,42 +219,42 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
 	  void pv_analysis_RT(float2* output, float2* fft, float* input, float* intermediary, float* win, int N, cudaStream_t* stream) {
       cudaWindow_HanRT<< <1, N , 0 , *stream>> > (input, intermediary, N);
 		  checkCUDAError_("Window analysis", __LINE__);
-         #ifdef DEBUGwindow
+      #ifdef DEBUGwindow
           float *debug_arr;
           cudaMallocManaged((void**)&debug_arr, sizeof(float) * N, cudaMemAttachHost);
-      checkCUDAError_("Error debugging input after WINDOW (malloc)", __LINE__);
+          checkCUDAError_("Error debugging input after WINDOW (malloc)", __LINE__);
           cudaMemcpy(debug_arr,input, sizeof(float) * N,cudaMemcpyDeviceToHost);
-      checkCUDAError_("Error debugging input after WINDOW (memcpy)", __LINE__);
+          checkCUDAError_("Error debugging input after WINDOW (memcpy)", __LINE__);
           printf("in\n");
           printArraywNewLines(N, debug_arr);
           cudaMemcpy(debug_arr,intermediary, sizeof(float) * N,cudaMemcpyDeviceToHost);
-      checkCUDAError_("Error debugging intermediary after WINDOW (mempy)", __LINE__);
+          checkCUDAError_("Error debugging intermediary after WINDOW (mempy)", __LINE__);
           printf("intermediary\n");
           printArraywNewLines(N, debug_arr);
           cudaFree(debug_arr);
-          #endif
+      #endif
 		  cufftShiftPadZeros<<<1, N/2, 0, *stream>>>(output, intermediary, N, N);
       checkCUDAError_("pad zero analysis", __LINE__);
-         #ifdef DEBUGpad
+      #ifdef DEBUGpad
           float2 *debug_arr1;
           cudaMallocManaged((void**)&debug_arr1, sizeof(float2) *2 * N, cudaMemAttachHost);
-      checkCUDAError_("Error debugging output after cufftshift (malloc)", __LINE__);
+          checkCUDAError_("Error debugging output after cufftshift (malloc)", __LINE__);
           cudaMemcpy(debug_arr1,output, sizeof(float2) *2 * N,cudaMemcpyDeviceToHost);
-      checkCUDAError_("Error debugging output after cufftshift (memcpy)", __LINE__);
+          checkCUDAError_("Error debugging output after cufftshift (memcpy)", __LINE__);
           printf("out\n");
           printArraywNewLines(2*N, debug_arr1);
           cudaFree(debug_arr1);
-          #endif
+      #endif
       FFT::HPFFT::computeGPUFFT_RT(2*N, 2, output, fft, stream);
 		  checkCUDAError_("Cufft Error analysis", __LINE__);
-         #ifdef DEBUGFFT
-         float2 *debug_arr2;
+      #ifdef DEBUGFFT
+          float2 *debug_arr2;
           cudaMallocManaged((void**)&debug_arr2, sizeof(float2) * N, cudaMemAttachHost);
           cudaMemcpy(debug_arr2,output, sizeof(float2) * N,cudaMemcpyDeviceToHost);
           printf("postcufft\n");
           printArraywNewLines(N, debug_arr2);
           cudaFree(debug_arr2);
-          #endif
+      #endif
 		  cudaMagFreq << <1,2* N, 0,*stream >> > (output,  2*N);
 		  checkCUDAError_("magfreq Error analysis kernel.cu", __LINE__);
 	  }
@@ -258,14 +264,14 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
 
       FFT::HPFFT::computeGPUIFFT(2*N, 2, frontFrame, intermediary);
 			checkCUDAError_("ifft error");
-         #ifdef DEBUGIFFT
+      #ifdef DEBUGIFFT
          float2 *debug_arr2;
           cudaMallocManaged((void**)&debug_arr2, sizeof(float2) * 2 * N, cudaMemAttachHost);
           cudaMemcpy(debug_arr2,intermediary, sizeof(float2) * 2 * N,cudaMemcpyDeviceToHost);
           printf("postcufft\n");
           printArraywNewLines(N, debug_arr2);
           cudaFree(debug_arr2);
-          #endif
+      #endif
 
 			cudaDivVec << <1, N >> > ( intermediary,output, N);
 			checkCUDAError_("divvec error");
@@ -282,17 +288,18 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
       }
       void test_overlap_add(float* input, float* output, float* intermediary, float* backFrame, float* win, int N, int hopSize){
           cudaWindow<< <1,N >> > (input, intermediary, win, N);
-			checkCUDAError_("window error", __LINE__);
-		      cufftShift<<<1, N/2>>>(output, intermediary, N, N);
-			checkCUDAError_("shift error", __LINE__);
+     			checkCUDAError_("window error", __LINE__);
+		      cufftShift<<<1, N/2>>>(output, intermediary, N);
+			    checkCUDAError_("shift error", __LINE__);
 			    cufftShift<<<1,N/2>>>(output, N);
-			checkCUDAError_("shift error", __LINE__);
+		    	checkCUDAError_("shift error", __LINE__);
 			    cudaWindow<<<1, N>>>(output, win, N);
 			    cudaOverlapAdd<<<1,N>>>(backFrame, output, N, hopSize);
       }
 	  void pv_analysis_CUFFT(float2* output, float2* fft, float* input, float* intermediary, float* win, int N) {
+      timer().startGpuTimer();
       cudaWindow<< <1,N >> > (input, intermediary, win, N);
-         #ifdef DEBUGwindow
+      #ifdef DEBUGwindow
           float *debug_arr;
           cudaMallocManaged((void**)&debug_arr, sizeof(float) * N, cudaMemAttachHost);
           cudaMemcpy(debug_arr,input, sizeof(float) * N,cudaMemcpyDeviceToHost);
@@ -302,62 +309,66 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
           printf("intermediary\n");
           printArraywNewLines(N, debug_arr);
           cudaFree(debug_arr);
-          #endif
+      #endif
 		  checkCUDAError_("Window analysis", __LINE__);
 		  cufftShiftPadZeros<<<1, N/2>>>(output, intermediary, N, N);
-         #ifdef DEBUGpad
+      #ifdef DEBUGpad
           float2 *debug_arr1;
           cudaMallocManaged((void**)&debug_arr1, sizeof(float2) * N, cudaMemAttachHost);
           cudaMemcpy(debug_arr1,output, sizeof(float2) * N,cudaMemcpyDeviceToHost);
           printf("out\n");
           printArraywNewLines(N, debug_arr1);
           cudaFree(debug_arr1);
-          #endif
+      #endif
       checkCUDAError_("pad zero analysis", __LINE__);
       cufftHandle plan;
 		  cufftPlan1d(&plan, 2 * N, CUFFT_C2C, 1);
 		  cufftExecC2C(plan, (cufftComplex *)output, (cufftComplex *)output, CUFFT_FORWARD);
 		  checkCUDAError_("Cufft Error analysis", __LINE__);
-         #ifdef DEBUGCUFFT
-         float2 *debug_arr2;
+      #ifdef DEBUGCUFFT
+          float2 *debug_arr2;
           cudaMallocManaged((void**)&debug_arr2, sizeof(float2) *2* N, cudaMemAttachHost);
           cudaMemcpy(debug_arr2,output, sizeof(float2) *2* N,cudaMemcpyDeviceToHost);
           printf("postcufft\n");
           printArraywNewLines(2*N, debug_arr2);
           cudaFree(debug_arr2);
-          #endif
+      #endif
       cufftDestroy(plan);
-      cudaMagFreq << <1, 2*N >> > (output,  2*N);
-       #ifdef DEBUGMAG
-         float2 *debug_arr3;
+      cudaMagFreq << <1,2 * N >> > (output,  2*N);
+      checkCUDAError_("magfreq Error analysis", __LINE__);
+      #ifdef DEBUGMAG
+          float2 *debug_arr3;
           cudaMallocManaged((void**)&debug_arr3, sizeof(float2) *2 * N, cudaMemAttachHost);
           cudaMemcpy(debug_arr3,output, sizeof(float2) *2 * N,cudaMemcpyDeviceToHost);
           printf("postMagnitude\n");
           printArraywNewLines(2*N, debug_arr3);
           cudaFree(debug_arr3);
-          #endif
-		  checkCUDAError_("magfreq Error analysis", __LINE__);
+      #endif
+      timer().endGpuTimer();
     }
       //#define DEBUGTS
       //#define DEBUGIFFT
       //#define DEBUGSHIFTRE
 		void resynthesis_CUFFT(float* output, float* backFrame, float2* frontFrame, float* win,int N, int hopSize) {
-		 	cudaTimeScale << <1,2* N >> > (frontFrame,2* N, 1);
-         #ifdef DEBUGTS
-         float2 *debug_arr2;
+      timer().startGpuTimer();
+		 	cudaTimeScale << <1,2*N >> > (frontFrame,2* N, 1);
+      #ifdef DEBUGTS
+          float2 *debug_arr2;
           cudaMallocManaged((void**)&debug_arr2, sizeof(float2) * 2 * N, cudaMemAttachHost);
           cudaMemcpy(debug_arr2,frontFrame, sizeof(float2) * 2 * N,cudaMemcpyDeviceToHost);
           printf("postTS\n");
           printArraywNewLines(N, debug_arr2);
           cudaFree(debug_arr2);
-          #endif
+      #endif
       cufftHandle plan;
 		  cufftPlan1d(&plan,  N, CUFFT_C2R, 1);
 		  checkCUDAError_("Cufft Plan IFFT Error", __LINE__);
 			cufftExecC2R(plan, (cufftComplex*)frontFrame, (cufftReal *)output);
 			checkCUDAError_("ifft error");
-         #ifdef DEBUGIFFT
-         float *debug_arr;
+      cufftDestroy(plan);
+			checkCUDAError_("cufftDestory error");
+      #ifdef DEBUGIFFT
+          float *debug_arr;
           cudaMallocManaged((void**)&debug_arr, sizeof(float) *  N, cudaMemAttachHost);
           checkCUDAError_("Error debugging output after ifft (malloc)", __LINE__);
           cudaMemcpy(debug_arr,output, sizeof(float) * N,cudaMemcpyHostToHost);
@@ -365,13 +376,11 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
           printf("CU IFFT\n");
           printArraywNewLines(N, debug_arr);
           cudaFree(debug_arr);
-          #endif
-      cufftDestroy(plan);
-			checkCUDAError_("cufftDestory error");
+      #endif
 			cudaDivVec << <1, N >> > (output, N, N);
       checkCUDAError_("divvec error");
       #ifdef DEBUGSCALE
-         float *debug_arr1;
+          float *debug_arr1;
           cudaMallocManaged((void**)&debug_arr1, sizeof(float) * N, cudaMemAttachHost);
           checkCUDAError_("Error debugging output after ifft (malloc)", __LINE__);
           cudaMemcpy(debug_arr1, output, sizeof(float) * N,cudaMemcpyHostToHost);
@@ -384,7 +393,7 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
 			cufftShift<<<1,N/2>>>(output, N);
 			checkCUDAError_("shift error");
       #ifdef DEBUGSHIFTRE
-         float *debug_arr3;
+          float *debug_arr3;
           cudaMallocManaged((void**)&debug_arr3, sizeof(float) * N, cudaMemAttachHost);
           checkCUDAError_("Error debugging output after ifft (malloc)", __LINE__);
           cudaMemcpy(debug_arr3, output, sizeof(float) * N,cudaMemcpyHostToHost);
@@ -397,7 +406,7 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
 			cudaWindow<<<1, N>>>(output, win, N);
 			checkCUDAError_("window error");
       #ifdef DEBUGSHIFTRE
-         float *debug_arr4;
+          float *debug_arr4;
           cudaMallocManaged((void**)&debug_arr4, sizeof(float) * N, cudaMemAttachHost);
           checkCUDAError_("Error debugging output after ifft (malloc)", __LINE__);
           cudaMemcpy(debug_arr4, output, sizeof(float) * N,cudaMemcpyHostToHost);
@@ -419,6 +428,6 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
           printArraywNewLines(N, debug_arr5);
           cudaFree(debug_arr5);
       #endif
-	  
+      timer().endGpuTimer();
       }
   }

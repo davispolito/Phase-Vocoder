@@ -1,5 +1,6 @@
 #pragma once
 #include "kernel.h"
+#include "common.h"
 #define NUM_STREAMS 3
 enum Effect {
   TIME_SHIFT = 't',
@@ -29,6 +30,7 @@ public:
 	int outHopSize;
 	int stream;
 	cudaStream_t streams[NUM_STREAMS];
+
 
 	void checkCUDAErrori(const char *msg, int line) {
 		cudaError_t err = cudaGetLastError();
@@ -74,9 +76,8 @@ public:
 				cudaStreamCreate(&streams[i]);
 			}
     }
-		
 		PhaseVocoder(int samples, Effect e, float scaleFactor, int hop): nSamps(samples), hopSize(samples/hop) {
-    	cudaMallocManaged((void**)&imp,  2 * sizeof(float)*samples, cudaMemAttachHost);
+    	cudaMallocManaged((void**)&imp, sizeof(float)*samples, cudaMemAttachHost);
   		checkCUDAErrori("Malloc imp error",__LINE__);
     	cudaMallocManaged((void**)&imp1, sizeof(float)*samples, cudaMemAttachHost);
 		  checkCUDAErrori("Malloc imp1 error",__LINE__);
@@ -87,7 +88,7 @@ public:
 			 imp[i] = (0.54f - 0.46f * cos(omega*(i))); 
 	    }
 			float omega1 = 2.f * M_PI / (2 * samples-1);
-	    for(int i = 0; i < 2* samples; i++){
+	    for(int i = 0; i < samples; i++){
 			  //imp[i] = 0.5f * (1.f - cosf(omega * i));
 			  imp1[i] = (0.54f - 0.46f * cos(omega1*(i))); 
 	    }
