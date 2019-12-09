@@ -29,12 +29,12 @@ Resynthesis is simply the inverse fourier transform as well as proper scaling (b
 
 
 ## Current State of the system
-When given an input wav at 440 Hz as show by this spectrum diagram
+When given an input wav at 440 Hz as shown by this spectrum diagram
 ![in spectrum](img/inputwav.png)
-The current code outputs this when shifted
+The current code outputs a distorted wave form when shifted
 ![out spectrum](img/spectrumout.png)
 
-As you can see there is a bug that is not maintaining the frequency information properly
+Their is a bug that is smearing phase information across the frequency spectrum
 
 ![output wav form](img/outputwavform.png)
 
