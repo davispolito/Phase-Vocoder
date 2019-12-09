@@ -13,16 +13,16 @@
   These new vectors are then resynthesized using an Inverse Fourier Transform or Additive Synthesis. I hope to explore both options to determine which will work best in real time.
 
  Graphically the algorithm can be described as follows
-![analysis](analysis.png)
-![analysis](analysisindetail.png)
+![analysis](img/analysis.png)
+![analysis](img/analysisindetail.png)
 During the analysis phase we first take the input wave form and window it using a windowing function such as hanning or hamming. The purpose of the windowing function is to spread power and phase information across multiple "snapshots" of the audio wave form. The next phase is to time alias and zero pad the input. Zero padding increases the accuracy of the next step which is the Fourier Transform. The Fourier Transform transforms the time domain signal into polar coordinates which can then be changed into magnitude and phase information. 
 
-![processing](processing.png)
+![processing](img/processing.png)
 
 The Processing that occurs here depends on the effect. Time shifting would feature modification of the hop/overlap size as well as scaling of phase information over time. 
 In the case of pitch modification careful measure must be taken to determine the continuous phase or phase difference between windows.
 
-![resynthesis](resynthesis.png)
+![resynthesis](img/resynthesis.png)
 
 Resynthesis is simply the inverse fourier transform as well as proper scaling (by window size) and time shifting of the signal
 
@@ -30,20 +30,20 @@ Resynthesis is simply the inverse fourier transform as well as proper scaling (b
 
 ## Current State of the system
 When given an input wav at 440 Hz as show by this spectrum diagram
-![in spectrum](inputwav.png)
+![in spectrum](img/inputwav.png)
 The current code outputs this when shifted
-![out spectrum](spectrumout.png)
+![out spectrum](img/spectrumout.png)
 
 As you can see there is a bug that is not maintaining the frequency information properly
 
-![output wav form](outputwavform.png)
+![output wav form](img/outputwavform.png)
 
 On closer inspection it appears that their is a changing amplitude issue. I have yet to determine the cause of the bug
 I have built a system into the code to test the overlap adding characteristics and believe that their may be an issue with windowing and shifting.
 
 ## Developing the Algorithm for Real Time Audio Processing
 I am currently in the process of developing the Real Time version of this algorithm. Unfortunately do to bugs in the initial algorithm I was unable to finish it on time.
-![RElatime](Realtime.png)
+![RElatime](img/Realtime.png)
 
 In order to run this process in real time we must first use a thread based callback system on the CPU. Whenever the audio buffer is full we will then spawn `Number of Samples / Hop Size` streams on the gpu to process the input signal. The algorithm will look backwards at the previous input as well utilizing a ring buffer to maintain continuity and conserve space. 
 
