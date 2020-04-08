@@ -4,8 +4,8 @@
  */
 
 /* includes */
-#include "RtAudio.h"
 #include "AudioFile.h"
+#include "RtAudio.h"
 #include "RtError.h"
 #include "cufft_.h"
 #include "io.h"
@@ -71,7 +71,7 @@ int callback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
   // memcpy(outputBuffer, inputBuffer, sizeof(float) * nBufferFrames * 2);
   return 0;
 }
-#endif //RT
+#endif // RT
 
 int main(int argc, char **argv) {
   // handle args to choose which mode
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
   int channels = 1;
   int sampleRate = 44100;
   PhaseVocoder *phase = new PhaseVocoder(256, effect, 1, 2);
-  
+
   // set up Realtime Audio stream
   unsigned int bufferSize = phase->nSamps;
   unsigned int bufferBytes = 256;
@@ -117,12 +117,13 @@ int main(int argc, char **argv) {
       std::cout << "device" << i << " = " << info.name << std::endl;
   }
 
-  
+  // Not sure why deviceId is 11
   // input_params.deviceId = dac.getDefaultInputDevice();
   input_params.deviceId = 11;
   input_params.nChannels = channels;
   output_params.deviceId = 11;
   output_params.nChannels = channels;
+
 #ifdef RT
   try {
     // change buffer allocation to be cudamallocmanaged
@@ -143,6 +144,8 @@ int main(int argc, char **argv) {
   }
   if (dac.isStreamOpen())
     dac.closeStream();
+  
+  // Not sure why Davis is closing the stream as soon as he's starting it
 
 #else // RT
   cout << "Offline Vocoding" << endl;
