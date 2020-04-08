@@ -1,0 +1,22 @@
+[
+{
+  "directory": "/home/nikil/Documents/Phase-Vocoder",
+  "command": "/usr/bin/c++   -I/home/nikil/Documents/Phase-Vocoder/. -I/home/nikil/Documents/Phase-Vocoder/karnel -I/usr/local/cuda/include    -std=gnu++11 -o CMakeFiles/cuda-fft.dir/src/main.cpp.o -c /home/nikil/Documents/Phase-Vocoder/src/main.cpp",
+  "file": "/home/nikil/Documents/Phase-Vocoder/src/main.cpp"
+},
+{
+  "directory": "/home/nikil/Documents/Phase-Vocoder",
+  "command": "/usr/bin/c++   -I/home/nikil/Documents/Phase-Vocoder/. -I/home/nikil/Documents/Phase-Vocoder/karnel -I/usr/local/cuda/include    -std=gnu++11 -o CMakeFiles/cuda-fft.dir/src/phaseVocoder.cpp.o -c /home/nikil/Documents/Phase-Vocoder/src/phaseVocoder.cpp",
+  "file": "/home/nikil/Documents/Phase-Vocoder/src/phaseVocoder.cpp"
+},
+{
+  "directory": "/home/nikil/Documents/Phase-Vocoder",
+  "command": "/usr/bin/c++   -I/home/nikil/Documents/Phase-Vocoder/. -I/home/nikil/Documents/Phase-Vocoder/karnel -I/usr/local/cuda/include    -std=gnu++11 -o CMakeFiles/cuda-fft.dir/src/RtAudio.cpp.o -c /home/nikil/Documents/Phase-Vocoder/src/RtAudio.cpp",
+  "file": "/home/nikil/Documents/Phase-Vocoder/src/RtAudio.cpp"
+},
+{
+  "directory": "/home/nikil/Documents/Phase-Vocoder",
+  "command": "/usr/bin/c++   -I/home/nikil/Documents/Phase-Vocoder/. -I/home/nikil/Documents/Phase-Vocoder/karnel -I/usr/local/cuda/include    -std=gnu++11 -o CMakeFiles/cuda-fft.dir/src/io.cpp.o -c /home/nikil/Documents/Phase-Vocoder/src/io.cpp",
+  "file": "/home/nikil/Documents/Phase-Vocoder/src/io.cpp"
+}
+]
