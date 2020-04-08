@@ -71,8 +71,11 @@ int callback(void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
   // memcpy(outputBuffer, inputBuffer, sizeof(float) * nBufferFrames * 2);
   return 0;
 }
-#endif
+#endif //RT
+
 int main(int argc, char **argv) {
+  // handle args to choose which mode
+
   std::string file = "/testtones/";
   std::string outfile = "/output/";
   Effect effect;
@@ -93,9 +96,13 @@ int main(int argc, char **argv) {
     effect = static_cast<Effect>(*argv[2]);
     outfile.append(argv[3]);
   }
+
+  // set up vocoder
   int channels = 1;
   int sampleRate = 44100;
   PhaseVocoder *phase = new PhaseVocoder(256, effect, 1, 2);
+  
+  // set up Realtime Audio stream
   unsigned int bufferSize = phase->nSamps;
   unsigned int bufferBytes = 256;
   int nBuffers = 4;
@@ -109,6 +116,8 @@ int main(int argc, char **argv) {
     if (info.probed == true)
       std::cout << "device" << i << " = " << info.name << std::endl;
   }
+
+  
   // input_params.deviceId = dac.getDefaultInputDevice();
   input_params.deviceId = 11;
   input_params.nChannels = channels;
