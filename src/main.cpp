@@ -59,11 +59,11 @@ int callback(void *outputBuffer, void* inputBuffer, unsigned int nBufferFrames, 
 #endif
 int main(int argc, char** argv)
 {
-  std::string file = "/home/davis/Desktop/Phase-Vocoder/testtones/";
-  std::string outfile = "/home/davis/Desktop/Phase-Vocoder/output/";
+  std::string file = "/testtones/";
+  std::string outfile = "/output/";
   Effect effect;
   if(argc < 2){
-    file = "/home/davis/Desktop/Phase-Vocoder/testtones/1000sine.wav";
+    file = "/testtones/1000sine.wav";
     effect = Effect::TIME_SHIFT;
     outfile.append("out.wav");
   }else if (argc < 3) {
@@ -306,7 +306,7 @@ std::cin.get(cinput);
   cudaFree(fft);
   write:
   cout << "writing to file" << endl;
-  outFile.save("/home/davis/Desktop/Phase-Vocoder/output/out.wav");
+  outFile.save("/output/out.wav");
   cudaFree(backFrame);
   for(int i = 0; i < numChannels; i++){
     for(int j = 0; j < numSamples / phase->hopSize; j++){
@@ -323,7 +323,7 @@ std::cin.get(cinput);
   for (int i = 0; i < audioFile->getNumSamplesPerChannel(); i++){
       d_input[i] = audioFile->samples[0][i];
   }    
-  //save_results("/home/davis/Desktop/Phase-Vocoder/output.out", d_input, numSamples, 44100);
+  //save_results("/output.out", d_input, numSamples, 44100);
     checkCUDAError_("mem orr", __LINE__);
   //bufferToManageMemory(audioFile, d_input, 0);
   delete audioFile;
@@ -380,7 +380,7 @@ std::cin.get(cinput);
         }
   }
   cout << "writing to file" << endl;
-  outFile.save("/home/davis/Desktop/Phase-Vocoder/output/out.wav");
+  outFile.save("/output/out.wav");
   cudaFree(backFrame);
   for(int i = 0; i < numChannels; i++){
     for(int j = 0; j < numSamples / phase->hopSize; j++){
