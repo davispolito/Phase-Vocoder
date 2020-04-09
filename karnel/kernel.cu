@@ -30,6 +30,7 @@ __global__ void cufftShiftPadZeros(float2* output, float* input, int N, int numz
     output[idx].x = input[idx + N/2];
     output[idx + N/2 + numzeros].x = input[idx];
 }
+///cufftShhift used
 __global__ void cufftShift(float2* output, float* input, int N){
     int idx = blockIdx.x *  blockDim.x + threadIdx.x; 
     if(idx >= N / 2){
@@ -65,6 +66,7 @@ __global__ void cudaWindow(float* input, float* win, int nSamps, int offset){
     input[idx + offset] = input[idx + offset] * win[idx];
   }
   
+///CUDAWINDOW USED///
 __global__ void cudaWindow(float* input, float* output, float* win, int nSamps){ 
     int idx = blockIdx.x *  blockDim.x + threadIdx.x; 
     if (idx >= nSamps){
@@ -72,6 +74,8 @@ __global__ void cudaWindow(float* input, float* output, float* win, int nSamps){
     }
     output[idx] = input[idx] * win[idx];
   }
+
+//WINDOW USED IN RESYNTH
 __global__ void cudaWindow(float* input, float* win, int nSamps){ 
     int idx = blockIdx.x *  blockDim.x + threadIdx.x; 
     if (idx >= nSamps){
@@ -98,6 +102,7 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
     output[idx].y = atanf(input[idx].y / input[idx].x);
   }
 
+/////MAGFREQ USED//
   __global__ void cudaMagFreq(float2* input, int N){
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if(idx >= N){
@@ -117,7 +122,7 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
 	frontFrame[idx - hopSize] += backFrame[idx];
 
   }
-
+//////TIMESCALE USED/////
   __global__ void  cudaTimeScale(float2* input, int N, int timeScale) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (idx >  N) {
@@ -127,6 +132,7 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
 	input[idx].x = input[idx].x * cosf(timeScale * input[idx].y);
 	input[idx].y = input[idx].x * sinf(timeScale * input[idx].y);
    }
+////DIvVEC USED///
     __global__ void cudaDivVec(float* input, float N, int scale) {
 
 	  int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -173,7 +179,7 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
 			return timer;
 		}
 
-  
+  //////////USED IF CUFFTAN NOT DEFINE////////////
 	  void pv_analysis(float2* output, float2* fft, float* input, float* intermediary, float* win, int N) {
       cudaWindow << <1, N >> > (input, intermediary, win, N);
 		  checkCUDAError_("Window analysis", __LINE__);
@@ -259,6 +265,7 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
 		  checkCUDAError_("magfreq Error analysis kernel.cu", __LINE__);
 	  }
     //#define DEBUGIFFT
+      ////////////////////////////////USED IF CUFFTRE NOT DEFINE///////////////////////////////////////////
 		void resynthesis(float* output, float* backFrame, float2* frontFrame, float2* intermediary, float* win, int N,  int hopSize) {
 		 	cudaTimeScale << <1, 2* N >> > (frontFrame,2* N, 1);
 
@@ -296,6 +303,7 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
 			    cudaWindow<<<1, N>>>(output, win, N);
 			    cudaOverlapAdd<<<1,N>>>(backFrame, output, N, hopSize);
       }
+      ////////////?????/////////////THIS IS THE FUNCTION THAT IS USED with CUFFT/////////////////////
 	  void pv_analysis_CUFFT(float2* output, float2* fft, float* input, float* intermediary, float* win, int N) {
       timer().startGpuTimer();
       cudaWindow<< <1,N >> > (input, intermediary, win, N);
@@ -310,20 +318,22 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
           printArraywNewLines(N, debug_arr);
           cudaFree(debug_arr);
       #endif
-		  checkCUDAError_("Window analysis", __LINE__);
-		  cufftShiftPadZeros<<<1, N/2>>>(output, intermediary, N, N);
-      #ifdef DEBUGpad
-          float2 *debug_arr1;
-          cudaMallocManaged((void**)&debug_arr1, sizeof(float2) * N, cudaMemAttachHost);
-          cudaMemcpy(debug_arr1,output, sizeof(float2) * N,cudaMemcpyDeviceToHost);
-          printf("out\n");
-          printArraywNewLines(N, debug_arr1);
-          cudaFree(debug_arr1);
+//////NOTE I REMOVED PAD ZERO STAGE HERE... UNTESTED MAY CAUSE BUG
+			cufftShift<<<1,N/2>>>(intermediary, N);
+      #ifdef DEBUGSHIFT
+          float *debug_arr3;
+          cudaMallocManaged((void**)&debug_arr3, sizeof(float) * N, cudaMemAttachHost);
+          checkCUDAError_("Error debugging intermediary  after shift (malloc)", __LINE__);
+          cudaMemcpy(debug_arr3, intermediary, sizeof(float) * N,cudaMemcpyHostToHost);
+          checkCUDAError_("Error debugging intermediary after shift (memcpy)", __LINE__);
+          printf("SHIFT RE\n");
+          printArraywNewLines(N, debug_arr3);
+          cudaFree(debug_arr3);
       #endif
-      checkCUDAError_("pad zero analysis", __LINE__);
-      cufftHandle plan;
-		  cufftPlan1d(&plan, 2 * N, CUFFT_C2C, 1);
-		  cufftExecC2C(plan, (cufftComplex *)output, (cufftComplex *)output, CUFFT_FORWARD);
+         
+		  checkCUDAError_("Window analysis", __LINE__);
+		  cufftPlan1d(&plan, 2 * N, CUFFT_R2C, 1);
+		  cufftExecR2C(plan,(cufftReal*) intermediary, (cufftComplex *)output, CUFFT_FORWARD);
 		  checkCUDAError_("Cufft Error analysis", __LINE__);
       #ifdef DEBUGCUFFT
           float2 *debug_arr2;
@@ -349,6 +359,7 @@ __global__ void cudaWindow_HanRT(float* input, float* output, int nSamps){
       //#define DEBUGTS
       //#define DEBUGIFFT
       //#define DEBUGSHIFTRE
+      /////RESYTNEHSIS USED for CUFFTT///// 
 		void resynthesis_CUFFT(float* output, float* backFrame, float2* frontFrame, float* win,int N, int hopSize) {
       timer().startGpuTimer();
 		 	cudaTimeScale << <1,2*N >> > (frontFrame,2* N, 1);
